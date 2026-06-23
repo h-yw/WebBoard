@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分数与百分比快速估算与背诵训练器</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        /* 3D 翻牌效果额外样式 */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- 导航栏 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                    <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-900 md:text-lg">速算估算与背诵微练</h1>
+                    <div class="flex items-center space-x-2 mt-0.5">
+                        <span id="sync-indicator" class="flex items-center text-[10px] text-slate-400">
+                            <span class="w-2 h-2 rounded-full bg-slate-300 inline-block mr-1"></span>
+                            <span>本地存储未就绪</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 模式切换 Tabs -->
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+                <button id="tab-practice" class="px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition bg-white text-indigo-600 shadow-sm">
+                    估算挑战
+                </button>
+                <button id="tab-flashcard" class="px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition text-slate-600 hover:text-slate-900">
+                    精准背诵
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 左侧/主体：功能区 -->
+        <div class="flex-grow flex flex-col gap-6">
+            
+            <!-- ================== 1. 估算练习面板 ================== -->
+            <div id="panel-practice" class="flex flex-col gap-6">
+                <!-- 统计看板 -->
+                <div class="grid grid-cols-4 gap-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-center">
+                        <p class="text-[10px] md:text-xs text-slate-500 font-medium">已答题</p>
+                        <p id="stat-total" class="text-base md:text-lg font-bold text-slate-800 mt-0.5">0</p>
+                    </div>
+                    <div class="text-center border-l border-slate-100">
+                        <p class="text-[10px] md:text-xs text-slate-500 font-medium">正确率</p>
+                        <p id="stat-accuracy" class="text-base md:text-lg font-bold text-indigo-600 mt-0.5">0%</p>
+                    </div>
+                    <div class="text-center border-l border-slate-100">
+                        <p class="text-[10px] md:text-xs text-slate-500 font-medium">当前连击</p>
+                        <p id="stat-streak" class="text-base md:text-lg font-bold text-emerald-500 mt-0.5">0</p>
+                    </div>
+                    <div class="text-center border-l border-slate-100">
+                        <p class="text-[10px] md:text-xs text-slate-500 font-medium">历史最高</p>
+                        <p id="stat-best-streak" class="text-base md:text-lg font-bold text-amber-500 mt-0.5">0</p>
+                    </div>
+                </div>
+
+                <!-- 估算卡片容器 -->
+                <div class="perspective-1000 w-full max-w-md mx-auto aspect-[1.6/1]">
+                    <div id="practice-card" class="transform-style-3d relative w-full h-full transition-transform duration-500 cursor-pointer">
+                        
+                        <!-- 练习卡片正面 -->
+                        <div class="backface-hidden absolute inset-0 w-full h-full bg-white rounded-3xl border-2 border-slate-200 shadow-md flex flex-col items-center justify-between p-6">
+                            <span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full uppercase tracking-wider">估算挑战 (正面)</span>
+                            <div class="text-center my-auto">
+                                <p id="practice-front-percent" class="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight">--%</p>
+                                <p class="text-xs text-slate-400 mt-3">脑中回忆最接近的分数 (1/x)</p>
+                            </div>
+                            <span class="text-xs text-indigo-500 font-medium flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-pulse"></i> 点击翻牌查看最接近基准
+                            </span>
+                        </div>
+
+                        <!-- 练习卡片背面 -->
+                        <div class="backface-hidden rotate-y-180 absolute inset-0 w-full h-full bg-slate-900 text-white rounded-3xl border-2 border-slate-800 shadow-md flex flex-col items-center justify-between p-6">
+                            <span class="text-xs font-semibold px-2.5 py-1 bg-slate-800 text-slate-300 rounded-full uppercase tracking-wider">正确解答 (背面)</span>
+                            <div class="text-center my-auto">
+                                <p id="practice-back-fraction" class="text-6xl font-black tracking-tight text-emerald-400">1/--</p>
+                                <p id="practice-back-detail" class="text-sm text-slate-300 mt-2">基准百分数: --% (误差: --%)</p>
+                            </div>
+                            <span class="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 点击卡片翻回正面
+                            </span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 估算结果自测按钮 -->
+                <div id="practice-controls" class="flex justify-center space-x-4 w-full max-w-md mx-auto">
+                    <button id="btn-practice-wrong" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1.5 shadow-sm">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                        <span>我想错了</span>
+                    </button>
+                    <button id="btn-practice-correct" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-100">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span>我想对了</span>
+                    </button>
+                </div>
+
+                <!-- 练习历史 -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+                            <span>最近挑战记录</span>
+                        </h3>
+                        <button id="btn-clear-history" class="text-xs text-slate-400 hover:text-rose-500 transition">清空</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead>
+                                <tr class="border-b border-slate-100 text-slate-400 font-semibold uppercase">
+                                    <th class="pb-2">出题百分比</th>
+                                    <th class="pb-2">正确基准</th>
+                                    <th class="pb-2">最大误差</th>
+                                    <th class="pb-2 text-right">自我反馈</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-list" class="divide-y divide-slate-100">
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-slate-400">暂无练习数据，翻牌开始挑战吧！</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================== 2. 精准背诵面板 ================== -->
+            <div id="panel-flashcard" class="flex flex-col gap-6 hidden">
+                <!-- 背诵进度 -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs text-slate-500">记忆进度（已记住 / 总卡片数）</p>
+                        <p id="card-progress-text" class="text-lg font-bold text-slate-800 mt-1">0 / 19</p>
+                    </div>
+                    <button id="btn-reset-flashcards" class="flex items-center space-x-1 bg-slate-100 text-slate-700 rounded-lg py-1.5 px-3 text-xs font-semibold hover:bg-slate-200 transition">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span>重新打乱</span>
+                    </button>
+                </div>
+
+                <!-- 精准背诵卡片 -->
+                <div class="perspective-1000 w-full max-w-md mx-auto aspect-[1.6/1]">
+                    <div id="flashcard" class="transform-style-3d relative w-full h-full transition-transform duration-500 cursor-pointer">
+                        
+                        <!-- 正面 (显示百分数) -->
+                        <div class="backface-hidden absolute inset-0 w-full h-full bg-white rounded-3xl border-2 border-slate-200 shadow-md flex flex-col items-center justify-between p-6">
+                            <span class="text-xs font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full">精准背诵 (正面)</span>
+                            <div class="text-center my-auto">
+                                <p id="card-front-percent" class="text-5xl font-extrabold text-slate-900 tracking-tight">--%</p>
+                                <p class="text-xs text-slate-400 mt-3">脑海中回忆对应的精确分数</p>
+                            </div>
+                            <span class="text-xs text-indigo-500 font-medium flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-pulse"></i> 点击翻牌查看答案
+                            </span>
+                        </div>
+
+                        <!-- 反面 (显示正确分数答案) -->
+                        <div class="backface-hidden rotate-y-180 absolute inset-0 w-full h-full bg-indigo-600 text-white rounded-3xl border-2 border-indigo-700 shadow-md flex flex-col items-center justify-between p-6">
+                            <span class="text-xs font-semibold px-2 py-0.5 bg-indigo-500/30 text-indigo-100 rounded-full">正确解答 (背面)</span>
+                            <div class="text-center my-auto">
+                                <p id="card-back-fraction" class="text-6xl font-black tracking-tight text-white">1/--</p>
+                                <p id="card-back-percent-label" class="text-sm opacity-80 mt-2">精确百分数: --%</p>
+                            </div>
+                            <span class="text-xs text-indigo-200 font-medium flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 点击卡片翻回正面
+                            </span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 回馈按钮 -->
+                <div id="flashcard-controls" class="flex justify-center space-x-4 w-full max-w-md mx-auto">
+                    <button id="btn-card-wrong" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1">
+                        <i data-lucide="frown" class="w-4 h-4"></i>
+                        <span>没记住/再练一次</span>
+                    </button>
+                    <button id="btn-card-correct" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1 shadow-md shadow-emerald-100">
+                        <i data-lucide="smile" class="w-4 h-4"></i>
+                        <span>已记住/下一张</span>
+                    </button>
+                </div>
+
+                <!-- 完结撒花提示 -->
+                <div id="flashcard-success-screen" class="hidden bg-white rounded-3xl border border-emerald-200 p-8 text-center max-w-md mx-auto shadow-sm">
+                    <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="party-popper" class="w-8 h-8"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900">太棒了！背诵全部完成</h4>
+                    <p class="text-xs text-slate-500 mt-2">你已经将 1/2 至 1/20 的对应关系完全回忆了一遍！</p>
+                    <button id="btn-restart-success" class="mt-5 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition">
+                        重新开启背诵
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右侧：对照表和说明 -->
+        <div id="cheat-sheet" class="w-full md:w-80 flex-shrink-0 transition-all duration-300">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm sticky top-24">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <i data-lucide="table-properties" class="w-4 h-4 text-indigo-500"></i>
+                        <span>记忆追踪对照卡</span>
+                    </h3>
+                    <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">1/2~1/20</span>
+                </div>
+                
+                <!-- 动态熟练度对照表列表 -->
+                <div id="cheat-list" class="grid grid-cols-2 gap-2 max-h-[350px] md:max-h-[500px] overflow-y-auto pr-1 text-xs">
+                    <!-- JS根据熟练度状态动态绘制 -->
+                </div>
+
+                <!-- 熟练度图例 -->
+                <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-[10px] text-slate-400">
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mr-1"></span>已熟记</div>
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mr-1"></span>曾答错/不熟</div>
+                    <div class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block mr-1"></span>未练习</div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+                    <p class="font-bold text-slate-700 mb-1">本地存档追踪：</p>
+                    <p class="mb-2">我们在背景集成了**本地缓存记录仪**。当你选择“我想对了/已记住”或“我想错了/没记住”，熟记程度和连击记录将**自动保存在浏览器中**。</p>
+                    <p>对照卡左侧的**指示圆点**会随你的熟练度由灰转黄，最后转为绿色，助你消灭每一个不熟的分数！</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部 -->
+    <footer class="bg-white border-t border-slate-100 py-6 mt-12 text-center text-xs text-slate-400">
+        <p>© 2026 快速估算训练器 - 随时随地，提升心算敏感度</p>
+    </footer>
+
+    <!-- 本地 JavaScript 交互 -->
+    <script>
+        // ------------------ 1. 基准配置 ------------------
+        const dataSet = [
+            { fraction: "1/2", percent: 50 },
+            { fraction: "1/3", percent: 33.33 },
+            { fraction: "1/4", percent: 25 },
+            { fraction: "1/5", percent: 20 },
+            { fraction: "1/6", percent: 16.7 },
+            { fraction: "1/7", percent: 14.3 },
+            { fraction: "1/8", percent: 12.5 },
+            { fraction: "1/9", percent: 11.1 },
+            { fraction: "1/10", percent: 10 },
+            { fraction: "1/11", percent: 9.09 },
+            { fraction: "1/12", percent: 8.33 },
+            { fraction: "1/13", percent: 7.69 },
+            { fraction: "1/14", percent: 7.14 },
+            { fraction: "1/15", percent: 6.67 },
+            { fraction: "1/16", percent: 6.25 },
+            { fraction: "1/17", percent: 5.88 },
+            { fraction: "1/18", percent: 5.56 },
+            { fraction: "1/19", percent: 5.26 },
+            { fraction: "1/20", percent: 5 }
+        ];
+
+        const LOCAL_STORAGE_KEY = 'fraction_practice_progress_v1';
+
+        // ------------------ 本地状态变量 ------------------
+        let currentQuestion = null; 
+        let isPracticeFlipped = false;
+        
+        // 核心用户进度结构 (与本地存储双向绑定)
+        let userProgress = {
+            stats: {
+                total: 0,
+                correct: 0,
+                streak: 0,
+                bestStreak: 0
+            },
+            practiceHistory: [],
+            // 记录 1/2 至 1/20 每个分数的熟练度状态: 0 - 未掌握/未练习, 1 - 不熟/错误, 2 - 熟练
+            mastery: {} 
+        };
+
+        // 背诵卡片状态
+        let flashcardQueue = []; 
+        let flashcardMasteredCount = 0; 
+        let currentCardIndex = 0; 
+        let isCardFlipped = false;
+
+        // ------------------ DOM 元素变量 ------------------
+        let tabPractice, tabFlashcard, panelPractice, panelFlashcard, syncIndicator;
+        let elPracticeCard, elPracticeFrontPercent, elPracticeBackFraction, elPracticeBackDetail, elBtnPracticeWrong, elBtnPracticeCorrect, elProgressBar, elStatTotal, elStatAccuracy, elStatStreak, elStatBestStreak, elHistoryList, elBtnClearHistory, elBtnToggleCheat, elCheatSheet, elCheatList;
+        let elCardProgressText, elBtnResetFlashcards, elFlashcard, elCardFrontPercent, elCardBackFraction, elCardBackPercentLabel, elFlashcardControls, elFlashcardSuccessScreen, elBtnCardWrong, elBtnCardCorrect, elBtnRestartSuccess;
+
+        // ------------------ 2. LocalStorage 本地同步逻辑 ------------------
+        function loadProgressFromLocalStorage() {
+            setSyncStatus("loading", "正在加载本地进度...");
+            try {
+                const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    userProgress = {
+                        stats: {
+                            total: typeof parsed.stats?.total === 'number' ? parsed.stats.total : 0,
+                            correct: typeof parsed.stats?.correct === 'number' ? parsed.stats.correct : 0,
+                            streak: typeof parsed.stats?.streak === 'number' ? parsed.stats.streak : 0,
+                            bestStreak: typeof parsed.stats?.bestStreak === 'number' ? parsed.stats.bestStreak : 0
+                        },
+                        practiceHistory: Array.isArray(parsed.practiceHistory) ? parsed.practiceHistory : [],
+                        mastery: (parsed.mastery && typeof parsed.mastery === 'object') ? parsed.mastery : {}
+                    };
+                    setSyncStatus("success", "离线本地进度已恢复");
+                } else {
+                    setSyncStatus("success", "离线本地存档已启用");
+                }
+            } catch (err) {
+                console.error("加载本地存储失败，重置为全新记录", err);
+                setSyncStatus("error", "本地存档读取异常");
+            }
+        }
+
+        function saveProgressToLocalStorage() {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userProgress));
+                setSyncStatus("success", "已实时保存至本地");
+            } catch (err) {
+                console.error("写入本地存储失败:", err);
+                setSyncStatus("error", "本地保存失败");
+            }
+        }
+
+        function setSyncStatus(status, message) {
+            if (!syncIndicator) return;
+            let dotColor = "bg-slate-300";
+            if (status === "loading") dotColor = "bg-amber-400 animate-pulse";
+            if (status === "success") dotColor = "bg-emerald-500";
+            if (status === "error") dotColor = "bg-rose-500";
+
+            syncIndicator.innerHTML = `
+                <span class="w-2.5 h-2.5 rounded-full ${dotColor} inline-block mr-1"></span>
+                <span>${message}</span>
+            `;
+        }
+
+        // ------------------ 3. UI 渲染与数据结合 ------------------
+        function renderCheatSheet() {
+            if (!elCheatList) return;
+            
+            elCheatList.innerHTML = dataSet.map(item => {
+                const level = userProgress.mastery[item.fraction] || 0; // 0: 灰色, 1: 黄色, 2: 绿色
+                let badgeColor = "bg-slate-200";
+                if (level === 1) badgeColor = "bg-amber-500 shadow-sm shadow-amber-100";
+                if (level === 2) badgeColor = "bg-emerald-500 shadow-sm shadow-emerald-100";
+
+                return `
+                    <div class="flex justify-between items-center p-1.5 bg-slate-50 rounded border border-slate-100">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full ${badgeColor}" title="熟练度"></span>
+                            <span class="font-bold text-slate-700">${item.fraction}</span>
+                        </div>
+                        <span class="text-slate-500">${item.percent}%</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateUIStats() {
+            if (elStatTotal) elStatTotal.textContent = userProgress.stats.total;
+            if (elStatStreak) elStatStreak.textContent = userProgress.stats.streak;
+            if (elStatBestStreak) elStatBestStreak.textContent = userProgress.stats.bestStreak || 0;
+            if (elStatAccuracy) {
+                const acc = userProgress.stats.total === 0 ? 0 : Math.round((userProgress.stats.correct / userProgress.stats.total) * 100);
+                elStatAccuracy.textContent = acc + "%";
+            }
+            if (elProgressBar) {
+                elProgressBar.style.width = Math.min(((userProgress.stats.streak || 0) * 10), 100) + "%";
+            }
+        }
+
+        // ------------------ 4. 估算卡片模式 ------------------
+        function generateQuestion() {
+            if (!elPracticeCard || !elPracticeFrontPercent || !elPracticeBackFraction || !elPracticeBackDetail) return;
+            
+            isPracticeFlipped = false;
+            elPracticeCard.classList.remove('rotate-y-180');
+
+            // 1. 先用之前的抖动算法生成一个带抖动的百分比数字
+            const base = dataSet[Math.floor(Math.random() * dataSet.length)];
+            const scale = base.percent * 0.08; 
+            const deviation = (Math.random() * 2 - 1) * scale;
+            let targetPercent = parseFloat((base.percent + deviation).toFixed(2));
+            
+            if (targetPercent <= 0) targetPercent = parseFloat(base.percent.toFixed(2));
+
+            // 2. 【核心修复】动态最接近基准检测算法：
+            // 重新在数据集里找到与这个 targetPercent 绝对差值最小的分数作为【真·正确答案】。
+            // 这样 5.55% 生成后，通过这里扫描，会发现它距离 5.56% (1/18) 仅 0.01%，而判定 1/18 为正确答案。
+            let correctBase = dataSet[0];
+            let minDiff = Math.abs(dataSet[0].percent - targetPercent);
+
+            for (let i = 1; i < dataSet.length; i++) {
+                const diff = Math.abs(dataSet[i].percent - targetPercent);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    correctBase = dataSet[i];
+                }
+            }
+
+            currentQuestion = {
+                targetPercent: targetPercent,
+                correctFraction: correctBase.fraction,
+                basePercent: correctBase.percent
+            };
+
+            // 渲染卡片正面和背面数据
+            elPracticeFrontPercent.textContent = targetPercent + "%";
+            elPracticeBackFraction.textContent = correctBase.fraction;
+            
+            const realErrorMargin = Math.abs(targetPercent - correctBase.percent).toFixed(2);
+            elPracticeBackDetail.textContent = `接近基准: ${correctBase.percent}% (误差: ±${realErrorMargin}%)`;
+        }
+
+        function togglePracticeFlip() {
+            if (!elPracticeCard) return;
+            isPracticeFlipped = !isPracticeFlipped;
+            if (isPracticeFlipped) {
+                elPracticeCard.classList.add('rotate-y-180');
+            } else {
+                elPracticeCard.classList.remove('rotate-y-180');
+            }
+        }
+
+        function handlePracticeFeedback(userThoughtCorrect) {
+            if (!currentQuestion) return;
+
+            // 1. 刷新答题数据
+            userProgress.stats.total += 1;
+            if (userThoughtCorrect) {
+                userProgress.stats.correct += 1;
+                userProgress.stats.streak += 1;
+                if (userProgress.stats.streak > (userProgress.stats.bestStreak || 0)) {
+                    userProgress.stats.bestStreak = userProgress.stats.streak;
+                }
+                userProgress.mastery[currentQuestion.correctFraction] = 2;
+            } else {
+                userProgress.stats.streak = 0; 
+                userProgress.mastery[currentQuestion.correctFraction] = 1;
+            }
+
+            // 2. 算误差推入历史记录
+            const errorMargin = Math.abs(currentQuestion.targetPercent - currentQuestion.basePercent).toFixed(2);
+            const record = {
+                percent: currentQuestion.targetPercent,
+                correctAnswer: currentQuestion.correctFraction,
+                errorMargin: errorMargin,
+                isCorrect: userThoughtCorrect
+            };
+
+            userProgress.practiceHistory.unshift(record);
+            if (userProgress.practiceHistory.length > 10) {
+                userProgress.practiceHistory.pop();
+            }
+
+            // 3. 立即驱动 UI 变化和本地持久化
+            updateUIStats();
+            renderHistory();
+            renderCheatSheet();
+            saveProgressToLocalStorage();
+
+            // 4. 翻回正面，产生下一题
+            if (isPracticeFlipped) {
+                togglePracticeFlip();
+                setTimeout(generateQuestion, 300);
+            } else {
+                generateQuestion();
+            }
+        }
+
+        function renderHistory() {
+            if (!elHistoryList) return;
+            if (!userProgress.practiceHistory || userProgress.practiceHistory.length === 0) {
+                elHistoryList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-4 text-center text-slate-400">暂无练习数据，翻牌开始挑战吧！</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            elHistoryList.innerHTML = userProgress.practiceHistory.map(item => `
+                <tr class="hover:bg-slate-50 transition duration-150">
+                    <td class="py-3 font-semibold text-slate-900">${item.percent}%</td>
+                    <td class="py-3 font-bold text-indigo-600">${item.correctAnswer}</td>
+                    <td class="py-3 text-slate-400">±${item.errorMargin}%</td>
+                    <td class="py-3 text-right">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            item.isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }">
+                            ${item.isCorrect ? '我想对了' : '我想错了'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ------------------ 5. 精准背诵卡片模式 ------------------
+        function initFlashcards() {
+            if (!elFlashcard || !elFlashcardControls || !elFlashcardSuccessScreen) return;
+            flashcardQueue = shuffle(dataSet);
+            flashcardMasteredCount = 0;
+            currentCardIndex = 0;
+            isCardFlipped = false;
+            
+            elFlashcard.className = "transform-style-3d relative w-full h-full transition-transform duration-500 cursor-pointer";
+            
+            elFlashcardControls.classList.remove('hidden');
+            elFlashcardSuccessScreen.classList.add('hidden');
+            elFlashcard.classList.remove('hidden');
+
+            showNextCard();
+        }
+
+        function toggleFlip() {
+            if (!elFlashcard) return;
+            isCardFlipped = !isCardFlipped;
+            if (isCardFlipped) {
+                elFlashcard.classList.add('rotate-y-180');
+            } else {
+                elFlashcard.classList.remove('rotate-y-180');
+            }
+        }
+
+        function showNextCard() {
+            if (!elFlashcard || !elFlashcardControls || !elFlashcardSuccessScreen || !elCardProgressText) return;
+            if (flashcardQueue.length === 0) {
+                elFlashcard.classList.add('hidden');
+                elFlashcardControls.classList.add('hidden');
+                elFlashcardSuccessScreen.classList.remove('hidden');
+                elCardProgressText.textContent = `${dataSet.length} / ${dataSet.length}`;
+                return;
+            }
+
+            if (currentCardIndex >= flashcardQueue.length) {
+                currentCardIndex = 0;
+            }
+
+            const activeCard = flashcardQueue[currentCardIndex];
+
+            if (elCardFrontPercent) elCardFrontPercent.textContent = activeCard.percent + "%";
+            if (elCardBackFraction) elCardBackFraction.textContent = activeCard.fraction;
+            if (elCardBackPercentLabel) elCardBackPercentLabel.textContent = `精确百分数: ${activeCard.percent}%`;
+
+            elCardProgressText.textContent = `${flashcardMasteredCount} / ${dataSet.length}`;
+        }
+
+        function moveCardToBackAndNext() {
+            if (flashcardQueue.length <= 1) {
+                showNextCard();
+                return;
+            }
+            const activeCard = flashcardQueue[currentCardIndex];
+            userProgress.mastery[activeCard.fraction] = 1;
+            renderCheatSheet();
+            saveProgressToLocalStorage();
+
+            const [currentCard] = flashcardQueue.splice(currentCardIndex, 1);
+            flashcardQueue.push(currentCard);
+            showNextCard();
+        }
+
+        function masterCardAndNext() {
+            const activeCard = flashcardQueue[currentCardIndex];
+            userProgress.mastery[activeCard.fraction] = 2;
+            renderCheatSheet();
+            saveProgressToLocalStorage();
+
+            flashcardQueue.splice(currentCardIndex, 1);
+            flashcardMasteredCount++;
+            showNextCard();
+        }
+
+        // 随机混洗
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // ------------------ 6. 初始化生命周期 ------------------
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM 元素绑定
+            tabPractice = document.getElementById('tab-practice');
+            tabFlashcard = document.getElementById('tab-flashcard');
+            panelPractice = document.getElementById('panel-practice');
+            panelFlashcard = document.getElementById('panel-flashcard');
+            syncIndicator = document.getElementById('sync-indicator');
+
+            elPracticeCard = document.getElementById('practice-card');
+            elPracticeFrontPercent = document.getElementById('practice-front-percent');
+            elPracticeBackFraction = document.getElementById('practice-back-fraction');
+            elPracticeBackDetail = document.getElementById('practice-back-detail');
+            elBtnPracticeWrong = document.getElementById('btn-practice-wrong');
+            elBtnPracticeCorrect = document.getElementById('btn-practice-correct');
+
+            elProgressBar = document.getElementById('progress-bar');
+            elStatTotal = document.getElementById('stat-total');
+            elStatAccuracy = document.getElementById('stat-accuracy');
+            elStatStreak = document.getElementById('stat-streak');
+            elStatBestStreak = document.getElementById('stat-best-streak');
+            elHistoryList = document.getElementById('history-list');
+            elBtnClearHistory = document.getElementById('btn-clear-history');
+            elBtnToggleCheat = document.getElementById('btn-toggle-cheat');
+            elCheatSheet = document.getElementById('cheat-sheet');
+            elCheatList = document.getElementById('cheat-list');
+
+            elCardProgressText = document.getElementById('card-progress-text');
+            elBtnResetFlashcards = document.getElementById('btn-reset-flashcards');
+            elFlashcard = document.getElementById('flashcard');
+            elCardFrontPercent = document.getElementById('card-front-percent');
+            elCardBackFraction = document.getElementById('card-back-fraction');
+            elCardBackPercentLabel = document.getElementById('card-back-percent-label');
+            elFlashcardControls = document.getElementById('flashcard-controls');
+            elFlashcardSuccessScreen = document.getElementById('flashcard-success-screen');
+            elBtnCardWrong = document.getElementById('btn-card-wrong');
+            elBtnCardCorrect = document.getElementById('btn-card-correct');
+            elBtnRestartSuccess = document.getElementById('btn-restart-success');
+
+            // 首次尝试载入本地进度数据
+            loadProgressFromLocalStorage();
+
+            // Tabs 切换监听器
+            if (tabPractice) {
+                tabPractice.addEventListener('click', () => {
+                    tabPractice.className = "px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition bg-white text-indigo-600 shadow-sm";
+                    if (tabFlashcard) tabFlashcard.className = "px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition text-slate-600 hover:text-slate-900";
+                    if (panelPractice) panelPractice.classList.remove('hidden');
+                    if (panelFlashcard) panelFlashcard.classList.add('hidden');
+                    generateQuestion();
+                });
+            }
+
+            if (tabFlashcard) {
+                tabFlashcard.addEventListener('click', () => {
+                    tabFlashcard.className = "px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition bg-white text-indigo-600 shadow-sm";
+                    if (tabPractice) tabPractice.className = "px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition text-slate-600 hover:text-slate-900";
+                    if (panelPractice) panelPractice.classList.add('hidden');
+                    if (panelFlashcard) panelFlashcard.classList.remove('hidden');
+                    initFlashcards();
+                });
+            }
+
+            // 估算交互监听
+            if (elPracticeCard) elPracticeCard.addEventListener('click', togglePracticeFlip);
+            if (elBtnPracticeWrong) elBtnPracticeWrong.addEventListener('click', () => handlePracticeFeedback(false));
+            if (elBtnPracticeCorrect) elBtnPracticeCorrect.addEventListener('click', () => handlePracticeFeedback(true));
+
+            // 背诵交互监听
+            if (elFlashcard) elFlashcard.addEventListener('click', toggleFlip);
+            if (elBtnCardWrong) {
+                elBtnCardWrong.addEventListener('click', () => {
+                    if (isCardFlipped) {
+                        toggleFlip();
+                        setTimeout(moveCardToBackAndNext, 300);
+                    } else {
+                        moveCardToBackAndNext();
+                    }
+                });
+            }
+            if (elBtnCardCorrect) {
+                elBtnCardCorrect.addEventListener('click', () => {
+                    if (isCardFlipped) {
+                        toggleFlip();
+                        setTimeout(masterCardAndNext, 300);
+                    } else {
+                        masterCardAndNext();
+                    }
+                });
+            }
+
+            // 历史控制与对照卡切换
+            if (elBtnClearHistory) {
+                elBtnClearHistory.addEventListener('click', () => {
+                    userProgress.practiceHistory = [];
+                    renderHistory();
+                    saveProgressToLocalStorage();
+                });
+            }
+
+            if (elBtnToggleCheat) {
+                elBtnToggleCheat.addEventListener('click', () => {
+                    if (elCheatSheet) elCheatSheet.classList.toggle('hidden');
+                });
+            }
+
+            if (elBtnResetFlashcards) elBtnResetFlashcards.addEventListener('click', initFlashcards);
+            if (elBtnRestartSuccess) elBtnRestartSuccess.addEventListener('click', initFlashcards);
+
+            // 结合本地缓存初始化渲染
+            renderCheatSheet();
+            updateUIStats();
+            renderHistory();
+            generateQuestion();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
