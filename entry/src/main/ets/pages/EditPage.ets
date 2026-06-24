@@ -109,7 +109,7 @@ export struct EditPage {
         }
       }
 
-      const storageMgr = new StorageManager(this.context)
+      const storageMgr = StorageManager.getInstance(this.context)
       const items = await storageMgr.getAll()
       const index = items.findIndex(i => i.id === this.appId)
       if (index >= 0) {
@@ -195,8 +195,9 @@ export struct EditPage {
               Column({ space: 8 }) {
                 Button() {
                   Row({ space: 4 }) {
-                    Text('🖼️')
+                    SymbolGlyph($r('sys.symbol.picture'))
                       .fontSize(14)
+                      .fontColor([Color.White])
                     Text('选择图片')
                       .fontSize(13)
                       .fontColor(Color.White)
@@ -245,8 +246,9 @@ export struct EditPage {
 
             Button() {
               Row({ space: 6 }) {
-                Text('💾')
+                SymbolGlyph($r('sys.symbol.save'))
                   .fontSize(16)
+                  .fontColor([Color.White])
                 Text('保存修改')
                   .fontSize(16)
                   .fontWeight(FontWeight.Medium)

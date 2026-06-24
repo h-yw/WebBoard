@@ -16,7 +16,7 @@ export struct SettingsPage {
     this.navPathStack = info?.pathStack
 
     if (this.context) {
-      this.storageMgr = new StorageManager(this.context)
+      this.storageMgr = StorageManager.getInstance(this.context)
       this.storageMgr.getColorMode().then((mode: string) => {
         this.selectedMode = mode
       })

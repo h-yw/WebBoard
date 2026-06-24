@@ -54,10 +54,15 @@ Toggle 的 `.onChange()` 不会在 `isOn` 程序化变更时触发（与 Radio �
 
 ### 正确做法
 
-使用 `.onClick()` 替代 `.onChange()` 处理用户交互。`.onClick()` 只在用户实际点击时触发，不会在属性程序化变更时触发：
+使用 `.onClick()` 替代 `.onChange()` 处理用户交互。`.onClick()` 只在用户实际点击时触发，不会在属性程序化变更时触发。
+
+**注意：** ArkUI 中 Radio 的点击事件**不冒泡**到父级 Row，因此 Radio 和 Row 必须各自设置 `.onClick()`：
+- 点击 Radio 圆圈 → 只触发 Radio 的 onClick
+- 点击行文字区域 → 只触发 Row 的 onClick
+- 不会双重触发
 
 ```typescript
-// 正确写法
+// 正确写法：Radio 和 Row 各自处理点击
 Row() {
   Radio({ value: ColorMode.SYSTEM, group: 'colorMode' })
     .checked(this.selectedMode === ColorMode.SYSTEM)

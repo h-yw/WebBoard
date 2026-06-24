@@ -113,7 +113,7 @@ export struct ImportPage {
         }
       }
 
-      const storageMgr = new StorageManager(this.context)
+      const storageMgr = StorageManager.getInstance(this.context)
       await storageMgr.add(item)
 
       this.getUIContext().getPromptAction().showToast({ message: '导入成功' })

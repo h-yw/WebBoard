@@ -22,23 +22,24 @@ import { ColorMode } from '../common/Constants';
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
-  async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
+  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     try {
-      const storageMgr = new StorageManager(this.context)
-      const mode = await storageMgr.getColorMode()
-
-      let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
-      if (mode === ColorMode.LIGHT) {
-        colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
-      } else if (mode === ColorMode.DARK) {
-        colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_DARK
-      }
-
-      this.context.getApplicationContext().setColorMode(colorMode)
+      const storageMgr = StorageManager.getInstance(this.context)
+      storageMgr.getColorMode().then((mode: string) => {
+        let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
+        if (mode === ColorMode.LIGHT) {
+          colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
+        } else if (mode === ColorMode.DARK) {
+          colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+        }
+        this.context.getApplicationContext().setColorMode(colorMode)
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+      })
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
   onDestroy(): void {

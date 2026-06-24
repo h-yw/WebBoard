@@ -1,15 +1,23 @@
 import { preferences } from '@kit.ArkData';
 import { WebAppItem } from '../model/WebAppItem';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { StorageConstants, ColorMode } from '../common/Constants';
+import { StorageConstants, ColorMode, LayoutMode } from '../common/Constants';
 
 export class StorageManager {
+  private static instance: StorageManager | null = null
   private prefInstance: preferences.Preferences | null = null
   private initPromise: Promise<void> | null = null
   private context: Context
 
-  constructor(context: Context) {
+  private constructor(context: Context) {
     this.context = context
+  }
+
+  static getInstance(context: Context): StorageManager {
+    if (!StorageManager.instance) {
+      StorageManager.instance = new StorageManager(context)
+    }
+    return StorageManager.instance
   }
 
   private async ensureInit(): Promise<void> {
@@ -118,6 +126,28 @@ export class StorageManager {
     } catch (e) {
       const err = e as BusinessError
       console.error('StorageManager setPreloadEnabled failed: ' + err.code + ' ' + err.message)
+    }
+  }
+
+  async getLayoutMode(): Promise<string> {
+    await this.ensureInit()
+    try {
+      return await this.prefInstance!.get(StorageConstants.KEY_LAYOUT_MODE, LayoutMode.GRID) as string
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager getLayoutMode failed: ' + err.code + ' ' + err.message)
+      return LayoutMode.GRID
+    }
+  }
+
+  async setLayoutMode(mode: string): Promise<void> {
+    await this.ensureInit()
+    try {
+      await this.prefInstance!.put(StorageConstants.KEY_LAYOUT_MODE, mode)
+      await this.prefInstance!.flush()
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager setLayoutMode failed: ' + err.code + ' ' + err.message)
     }
   }
 }

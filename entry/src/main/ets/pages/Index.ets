@@ -9,7 +9,7 @@ import { ImportPage } from './ImportPage'
 import { ViewerPage } from './ViewerPage'
 import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
-import { LogoType, SourceType } from '../common/Constants'
+import { LogoType, SourceType, LayoutMode } from '../common/Constants'
 
 interface ViewerParam {
   entryHtml: string
@@ -31,6 +31,7 @@ struct Index {
   @State appList: WebAppItem[] = []
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
+  @State layoutMode: string = LayoutMode.GRID
   private dataSource: AppDataSource = new AppDataSource()
   private storageMgr: StorageManager | null = null
   private context: common.UIAbilityContext | null = null
@@ -58,9 +59,10 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    this.storageMgr = new StorageManager(this.context)
+    this.storageMgr = StorageManager.getInstance(this.context)
     WorkDirectory.ensureDirectory(this.context)
     
+    this.layoutMode = await this.storageMgr.getLayoutMode()
     await this.loadApps()
     if (this.appList.length === 0) {
       await this.addPresetApp()
@@ -172,6 +174,13 @@ struct Index {
       return '目录'
     }
     return '文件'
+  }
+
+  toggleLayout(): void {
+    this.layoutMode = this.layoutMode === LayoutMode.GRID ? LayoutMode.LIST : LayoutMode.GRID
+    if (this.storageMgr) {
+      this.storageMgr.setLayoutMode(this.layoutMode)
+    }
   }
 
   navigateToImport(): void {
@@ -322,9 +331,9 @@ struct Index {
   @Builder
   SearchBar() {
     Row() {
-      Text('🔍')
+      SymbolGlyph($r('sys.symbol.magnifyingglass'))
         .fontSize(16)
-        .fontColor($r('app.color.app_text_muted'))
+        .fontColor([$r('app.color.app_text_muted')])
       TextInput({ placeholder: '搜索应用...', text: this.searchKeyword })
         .fontSize(14)
         .height(36)
@@ -424,11 +433,98 @@ struct Index {
   }
 
   @Builder
+  GridCardItem(item: WebAppItem) {
+    Column({ space: 8 }) {
+      if (item.logoType === LogoType.CUSTOM && item.logoUri.length > 0) {
+        Image(item.logoUri)
+          .width(64)
+          .height(64)
+          .borderRadius(14)
+          .objectFit(ImageFit.Cover)
+      } else {
+        Stack() {
+          Text(this.getInitial(item.name))
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+        }
+        .width(64)
+        .height(64)
+        .borderRadius(14)
+        .linearGradient({
+          angle: 135,
+          colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+        })
+        .alignContent(Alignment.Center)
+      }
+
+      Column({ space: 4 }) {
+        Text(item.name)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.app_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .textAlign(TextAlign.Center)
+
+        Text(this.getSourceLabel(item.sourceType))
+          .fontSize(10)
+          .fontColor(Color.White)
+          .backgroundColor(this.getSourceColor(item.sourceType))
+          .borderRadius(4)
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+      }
+      .alignItems(HorizontalAlign.Center)
+
+      if (item.description.length > 0) {
+        Text(item.description)
+          .fontSize(11)
+          .fontColor($r('app.color.app_text_muted'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .textAlign(TextAlign.Center)
+      }
+    }
+    .width('100%')
+    .padding(12)
+    .borderRadius(12)
+    .backgroundColor($r('app.color.app_card_bg'))
+    .shadow({
+      radius: 6,
+      color: $r('app.color.app_shadow'),
+      offsetX: 0,
+      offsetY: 1
+    })
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.openViewer(item)
+    })
+    .gesture(
+      LongPressGesture()
+        .onAction(() => {
+          this.showActionSheet(item)
+        })
+    )
+  }
+
+  @Builder
   Menus() {
     Row({ space: 8 }) {
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
-        Text('⚙️')
+        SymbolGlyph(this.layoutMode === LayoutMode.GRID ? $r('sys.symbol.list_bullet') : $r('sys.symbol.square_grid_2x2'))
           .fontSize(16)
+          .fontColor([$r('app.color.app_text_secondary')])
+      }
+      .height(32)
+      .borderRadius(6)
+      .onClick(() => {
+        this.toggleLayout()
+      })
+
+      Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        SymbolGlyph($r('sys.symbol.gearshape'))
+          .fontSize(16)
+          .fontColor([$r('app.color.app_text_secondary')])
       }
       .height(32)
       .borderRadius(6)
@@ -438,9 +534,9 @@ struct Index {
 
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
         Row({ space: 4 }) {
-          Text('＋')
+          SymbolGlyph($r('sys.symbol.plus'))
             .fontSize(16)
-            .fontColor($r('app.color.app_primary'))
+            .fontColor([$r('app.color.app_primary')])
           Text('导入')
             .fontSize(13)
             .fontColor($r('app.color.app_primary'))
@@ -475,32 +571,104 @@ struct Index {
         this.SearchBar()
 
         if (this.getFilteredApps().length === 0) {
-          Column() {
-            Text(this.searchKeyword.length > 0 ? '未找到匹配的应用' : '暂无应用')
-              .fontSize(16)
-              .fontColor($r('app.color.app_text_muted'))
-            Text(this.searchKeyword.length > 0 ? '请尝试其他关键词' : '点击右上角「导入」添加 HTML 应用')
-              .fontSize(13)
-              .fontColor($r('app.color.app_text_disabled'))
-              .margin({ top: 8 })
+          Column({ space: 16 }) {
+            if (this.searchKeyword.length > 0) {
+              Text('🔍')
+                .fontSize(48)
+              Text('未找到匹配的应用')
+                .fontSize(16)
+                .fontColor($r('app.color.app_text_muted'))
+              Text('请尝试其他关键词')
+                .fontSize(13)
+                .fontColor($r('app.color.app_text_disabled'))
+            } else {
+              Text('📦')
+                .fontSize(64)
+              Column({ space: 4 }) {
+                Text('还没有应用哦')
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_primary'))
+                Text('导入 HTML 文件，开始你的第一个应用')
+                  .fontSize(13)
+                  .fontColor($r('app.color.app_text_muted'))
+              }
+
+              Button() {
+                Row({ space: 6 }) {
+                  SymbolGlyph($r('sys.symbol.plus'))
+                    .fontSize(16)
+                    .fontColor([Color.White])
+                  Text('导入应用')
+                    .fontSize(15)
+                    .fontColor(Color.White)
+                }
+              }
+              .height(44)
+              .borderRadius(22)
+              .backgroundColor($r('app.color.app_primary'))
+              .padding({ left: 24, right: 24 })
+              .onClick(() => {
+                this.navigateToImport()
+              })
+
+              Button() {
+                Row({ space: 4 }) {
+                  Text('📋')
+                    .fontSize(14)
+                  Text('试试预设应用')
+                    .fontSize(13)
+                    .fontColor($r('app.color.app_text_secondary'))
+                }
+              }
+              .height(36)
+              .borderRadius(18)
+              .backgroundColor($r('app.color.app_card_bg'))
+              .border({ width: 1, color: $r('app.color.app_border') })
+              .onClick(() => {
+                this.addPresetApp()
+              })
+            }
           }
           .width('100%')
           .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
         } else {
           Refresh({ refreshing: $$this.isRefreshing }) {
-            List({ space: 12 }) {
-              LazyForEach(this.dataSource, (item: WebAppItem) => {
-                ListItem() {
-                  this.CardItem(item)
+            if (this.layoutMode === LayoutMode.GRID) {
+              Scroll() {
+                Grid() {
+                  LazyForEach(this.dataSource, (item: WebAppItem) => {
+                    GridItem() {
+                      this.GridCardItem(item)
+                    }
+                  }, (item: WebAppItem) => item.id)
                 }
-              }, (item: WebAppItem) => item.id)
+                .columnsTemplate('1fr 1fr')
+                .columnsGap(12)
+                .rowsGap(12)
+                .width('100%')
+                .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+              }
+              .width('100%')
+              .layoutWeight(1)
+              .scrollBar(BarState.Off)
+              .edgeEffect(EdgeEffect.Spring)
+            } else {
+              List({ space: 12 }) {
+                LazyForEach(this.dataSource, (item: WebAppItem) => {
+                  ListItem() {
+                    this.CardItem(item)
+                  }
+                }, (item: WebAppItem) => item.id)
+              }
+              .width('100%')
+              .layoutWeight(1)
+              .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+              .scrollBar(BarState.Off)
+              .edgeEffect(EdgeEffect.Spring)
             }
-            .width('100%')
-            .layoutWeight(1)
-            .padding({ left: 16, right: 16, top: 12, bottom: 16 })
-            .scrollBar(BarState.Off)
-            .edgeEffect(EdgeEffect.Spring)
           }
           .onRefreshing(() => {
             this.scanWorkDirectory()
