@@ -1,6 +1,5 @@
 import { webview } from '@kit.ArkWeb'
 import { WebPreloader } from '../util/WebPreloader'
-import { AppColors } from '../common/Constants'
 
 interface ViewerParam {
   entryHtml: string
@@ -96,10 +95,10 @@ export struct ViewerPage {
           Progress({ value: this.loadProgress, total: 100, type: ProgressType.Linear })
             .width('100%')
             .height(3)
-            .color(AppColors.PRIMARY)
-            .backgroundColor(AppColors.DIVIDER)
+            .color($r('app.color.app_primary'))
+            .backgroundColor($r('app.color.app_divider'))
         } else {
-          Divider().color(AppColors.DIVIDER).width('100%')
+          Divider().color($r('app.color.app_divider')).width('100%')
         }
 
         if (this.hasError) {
@@ -107,11 +106,11 @@ export struct ViewerPage {
             Text('加载失败')
               .fontSize(18)
               .fontWeight(FontWeight.Medium)
-              .fontColor(AppColors.TEXT_PRIMARY)
+              .fontColor($r('app.color.app_text_primary'))
 
             Text(this.errorMessage)
               .fontSize(14)
-              .fontColor(AppColors.TEXT_SECONDARY)
+              .fontColor($r('app.color.app_text_secondary'))
               .margin({ top: 8 })
               .maxLines(3)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -123,7 +122,7 @@ export struct ViewerPage {
               .fontColor(Color.White)
               .height(44)
               .borderRadius(8)
-              .backgroundColor(AppColors.PRIMARY)
+              .backgroundColor($r('app.color.app_primary'))
               .margin({ top: 20 })
               .onClick(() => {
                 this.retry()
@@ -139,7 +138,7 @@ export struct ViewerPage {
           Column() {
             Text('无法加载页面')
               .fontSize(16)
-              .fontColor(AppColors.TEXT_MUTED)
+              .fontColor($r('app.color.app_text_muted'))
           }
           .width('100%')
           .layoutWeight(1)
@@ -148,7 +147,7 @@ export struct ViewerPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(Color.White)
+      .backgroundColor($r('app.color.app_card_bg'))
     }
     .title(this.appName)
   }

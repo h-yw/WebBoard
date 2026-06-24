@@ -1,4 +1,5 @@
 import { WebAppItem } from '../model/WebAppItem'
+import { AppDataSource } from '../model/AppDataSource'
 import { StorageManager } from '../util/StorageManager'
 import { WebPreloader } from '../util/WebPreloader'
 import { WorkDirectory } from '../util/WorkDirectory'
@@ -6,25 +7,60 @@ import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ImportPage } from './ImportPage'
 import { ViewerPage } from './ViewerPage'
-import { AppColors, LogoType, SourceType } from '../common/Constants'
+import { EditPage } from './EditPage'
+import { SettingsPage } from './SettingsPage'
+import { LogoType, SourceType } from '../common/Constants'
 
 interface ViewerParam {
   entryHtml: string
   appName: string
 }
 
+interface EditParam {
+  appId: string
+  appName: string
+  appDescription: string
+  logoType: string
+  logoUri: string
+  entryHtml: string
+}
+
 @Entry
 @Component
 struct Index {
   @State appList: WebAppItem[] = []
+  @State searchKeyword: string = ''
+  @State isRefreshing: boolean = false
+  private dataSource: AppDataSource = new AppDataSource()
   private storageMgr: StorageManager | null = null
+  private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
   private dataChanged: boolean = false
 
+  getFilteredApps(): WebAppItem[] {
+    if (!this.appList || this.appList.length === 0) {
+      return []
+    }
+    if (this.searchKeyword.length === 0) {
+      return this.appList
+    }
+    const keyword = this.searchKeyword.toLowerCase()
+    const result: WebAppItem[] = []
+    for (let i = 0; i < this.appList.length; i++) {
+      const app = this.appList[i]
+      if (app.name.toLowerCase().includes(keyword) ||
+          app.description.toLowerCase().includes(keyword)) {
+        result.push(app)
+      }
+    }
+    return result
+  }
+
   async aboutToAppear(): Promise<void> {
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    this.storageMgr = new StorageManager(context)
-    WorkDirectory.ensureDirectory(context)
+    this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    this.storageMgr = new StorageManager(this.context)
+    WorkDirectory.ensureDirectory(this.context)
+    
     await this.loadApps()
     if (this.appList.length === 0) {
       await this.addPresetApp()
@@ -60,7 +96,37 @@ struct Index {
   async loadApps(): Promise<void> {
     if (this.storageMgr) {
       this.appList = await this.storageMgr.getAll()
+      this.dataSource.setApps(this.getFilteredApps())
     }
+  }
+
+  async scanWorkDirectory(): Promise<void> {
+    if (!this.context || !this.storageMgr) {
+      this.isRefreshing = false
+      return
+    }
+
+    const existingItems = await this.storageMgr.getAll()
+    const scannedItems = WorkDirectory.scanDirectory(this.context)
+
+    const existingPaths = new Set<string>()
+    for (let i = 0; i < existingItems.length; i++) {
+      existingPaths.add(existingItems[i].entryHtml)
+    }
+
+    let hasNew = false
+    for (let i = 0; i < scannedItems.length; i++) {
+      if (!existingPaths.has(scannedItems[i].entryHtml)) {
+        await this.storageMgr.add(scannedItems[i])
+        hasNew = true
+      }
+    }
+
+    if (hasNew) {
+      await this.loadApps()
+    }
+
+    this.isRefreshing = false
   }
 
   preloadRecentApps(): void {
@@ -88,14 +154,14 @@ struct Index {
     return 'W'
   }
 
-  getSourceColor(sourceType: string): string {
+  getSourceColor(sourceType: string): Resource {
     if (sourceType === SourceType.PRESET) {
-      return AppColors.SUCCESS
+      return $r('app.color.app_success')
     }
     if (sourceType === SourceType.DIRECTORY) {
-      return AppColors.WARNING
+      return $r('app.color.app_warning')
     }
-    return AppColors.PRIMARY
+    return $r('app.color.app_primary')
   }
 
   getSourceLabel(sourceType: string): string {
@@ -110,6 +176,43 @@ struct Index {
 
   navigateToImport(): void {
     this.navPathStack.pushPath({ name: 'ImportPage' })
+  }
+
+  navigateToEdit(item: WebAppItem): void {
+    const param: EditParam = {
+      appId: item.id,
+      appName: item.name,
+      appDescription: item.description,
+      logoType: item.logoType,
+      logoUri: item.logoUri,
+      entryHtml: item.entryHtml
+    }
+    this.navPathStack.pushPath({ name: 'EditPage', param: param })
+  }
+
+  showActionSheet(item: WebAppItem): void {
+    this.getUIContext().showAlertDialog({
+      title: '操作',
+      message: '请选择要执行的操作',
+      buttons: [
+        {
+          value: '编辑',
+          action: () => {
+            this.navigateToEdit(item)
+          }
+        },
+        {
+          value: '删除',
+          action: () => {
+            this.confirmDelete(item)
+          }
+        },
+        {
+          value: '取消',
+          action: () => {}
+        }
+      ]
+    })
   }
 
   openViewer(item: WebAppItem): void {
@@ -217,6 +320,30 @@ struct Index {
   }
 
   @Builder
+  SearchBar() {
+    Row() {
+      Text('🔍')
+        .fontSize(16)
+        .fontColor($r('app.color.app_text_muted'))
+      TextInput({ placeholder: '搜索应用...', text: this.searchKeyword })
+        .fontSize(14)
+        .height(36)
+        .backgroundColor(Color.Transparent)
+        .layoutWeight(1)
+        .onChange((value: string) => {
+          this.searchKeyword = value
+          this.dataSource.setApps(this.getFilteredApps())
+        })
+    }
+    .width('100%')
+    .height(44)
+    .padding({ left: 16, right: 16 })
+    .backgroundColor($r('app.color.app_search_bg'))
+    .borderRadius(8)
+    .margin({ left: 16, right: 16, top: 8, bottom: 8 })
+  }
+
+  @Builder
   CardItem(item: WebAppItem) {
     Row() {
       if (item.logoType === LogoType.CUSTOM && item.logoUri.length > 0) {
@@ -237,7 +364,7 @@ struct Index {
         .borderRadius(12)
         .linearGradient({
           angle: 135,
-          colors: [[AppColors.PRIMARY, 0.0], [AppColors.PRIMARY_DARK, 1.0]]
+          colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
         })
         .alignContent(Alignment.Center)
       }
@@ -247,7 +374,7 @@ struct Index {
           Text(item.name)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor(AppColors.TEXT_PRIMARY)
+            .fontColor($r('app.color.app_text_primary'))
             .layoutWeight(1)
 
           Text(this.getSourceLabel(item.sourceType))
@@ -264,7 +391,7 @@ struct Index {
         if (item.description.length > 0) {
           Text(item.description)
             .fontSize(13)
-            .fontColor(AppColors.TEXT_SECONDARY)
+            .fontColor($r('app.color.app_text_secondary'))
             .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .margin({ top: 6 })
@@ -278,10 +405,10 @@ struct Index {
     .width('100%')
     .padding(14)
     .borderRadius(12)
-    .backgroundColor(Color.White)
+    .backgroundColor($r('app.color.app_card_bg'))
     .shadow({
       radius: 6,
-      color: '#08000000',
+      color: $r('app.color.app_shadow'),
       offsetX: 0,
       offsetY: 1
     })
@@ -291,7 +418,7 @@ struct Index {
     .gesture(
       LongPressGesture()
         .onAction(() => {
-          this.confirmDelete(item)
+          this.showActionSheet(item)
         })
     )
   }
@@ -300,13 +427,23 @@ struct Index {
   Menus() {
     Row({ space: 8 }) {
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        Text('⚙️')
+          .fontSize(16)
+      }
+      .height(32)
+      .borderRadius(6)
+      .onClick(() => {
+        this.navPathStack.pushPath({ name: 'SettingsPage' })
+      })
+
+      Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
         Row({ space: 4 }) {
           Text('＋')
             .fontSize(16)
-            .fontColor(AppColors.PRIMARY)
+            .fontColor($r('app.color.app_primary'))
           Text('导入')
             .fontSize(13)
-            .fontColor(AppColors.PRIMARY)
+            .fontColor($r('app.color.app_primary'))
         }
       }
       .height(32)
@@ -325,48 +462,59 @@ struct Index {
       ImportPage()
     } else if (name === 'ViewerPage') {
       ViewerPage()
+    } else if (name === 'EditPage') {
+      EditPage()
+    } else if (name === 'SettingsPage') {
+      SettingsPage()
     }
   }
 
   build() {
     Navigation(this.navPathStack) {
       Column() {
-        if (this.appList.length === 0) {
+        this.SearchBar()
+
+        if (this.getFilteredApps().length === 0) {
           Column() {
-            Text('暂无应用')
+            Text(this.searchKeyword.length > 0 ? '未找到匹配的应用' : '暂无应用')
               .fontSize(16)
-              .fontColor(AppColors.TEXT_MUTED)
-            Text('点击右上角「导入」添加 HTML 应用')
+              .fontColor($r('app.color.app_text_muted'))
+            Text(this.searchKeyword.length > 0 ? '请尝试其他关键词' : '点击右上角「导入」添加 HTML 应用')
               .fontSize(13)
-              .fontColor(AppColors.TEXT_DISABLED)
+              .fontColor($r('app.color.app_text_disabled'))
               .margin({ top: 8 })
           }
           .width('100%')
           .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
         } else {
-          List({ space: 12 }) {
-            ForEach(this.appList, (item: WebAppItem) => {
-              ListItem() {
-                this.CardItem(item)
-              }
-            }, (item: WebAppItem) => item.id)
+          Refresh({ refreshing: $$this.isRefreshing }) {
+            List({ space: 12 }) {
+              LazyForEach(this.dataSource, (item: WebAppItem) => {
+                ListItem() {
+                  this.CardItem(item)
+                }
+              }, (item: WebAppItem) => item.id)
+            }
+            .width('100%')
+            .layoutWeight(1)
+            .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring)
           }
-          .width('100%')
-          .layoutWeight(1)
-          .padding({ left: 16, right: 16, top: 12, bottom: 16 })
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring)
-          .backgroundColor(AppColors.BACKGROUND)
+          .onRefreshing(() => {
+            this.scanWorkDirectory()
+          })
+          .backgroundColor($r('app.color.app_background'))
         }
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(AppColors.BACKGROUND)
+      .backgroundColor($r('app.color.app_background'))
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(AppColors.BACKGROUND)
+    .backgroundColor($r('app.color.app_background'))
     .title('WebBoard')
     .menus(this.Menus)
     .navDestination(this.buildNavDestination)

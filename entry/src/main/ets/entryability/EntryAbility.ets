@@ -16,13 +16,25 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { StorageManager } from '../util/StorageManager';
+import { ColorMode } from '../common/Constants';
 
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
-  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+  async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
     try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+      const storageMgr = new StorageManager(this.context)
+      const mode = await storageMgr.getColorMode()
+
+      let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
+      if (mode === ColorMode.LIGHT) {
+        colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
+      } else if (mode === ColorMode.DARK) {
+        colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+      }
+
+      this.context.getApplicationContext().setColorMode(colorMode)
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }

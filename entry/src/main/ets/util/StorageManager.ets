@@ -1,7 +1,7 @@
 import { preferences } from '@kit.ArkData';
 import { WebAppItem } from '../model/WebAppItem';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { StorageConstants } from '../common/Constants';
+import { StorageConstants, ColorMode } from '../common/Constants';
 
 export class StorageManager {
   private prefInstance: preferences.Preferences | null = null
@@ -75,5 +75,49 @@ export class StorageManager {
       }
     }
     await this.saveAll(filtered)
+  }
+
+  async getColorMode(): Promise<string> {
+    await this.ensureInit()
+    try {
+      return await this.prefInstance!.get(StorageConstants.KEY_COLOR_MODE, ColorMode.SYSTEM) as string
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager getColorMode failed: ' + err.code + ' ' + err.message)
+      return ColorMode.SYSTEM
+    }
+  }
+
+  async setColorMode(mode: string): Promise<void> {
+    await this.ensureInit()
+    try {
+      await this.prefInstance!.put(StorageConstants.KEY_COLOR_MODE, mode)
+      await this.prefInstance!.flush()
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager setColorMode failed: ' + err.code + ' ' + err.message)
+    }
+  }
+
+  async isPreloadEnabled(): Promise<boolean> {
+    await this.ensureInit()
+    try {
+      return await this.prefInstance!.get(StorageConstants.KEY_PRELOAD_ENABLED, true) as boolean
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager isPreloadEnabled failed: ' + err.code + ' ' + err.message)
+      return true
+    }
+  }
+
+  async setPreloadEnabled(enabled: boolean): Promise<void> {
+    await this.ensureInit()
+    try {
+      await this.prefInstance!.put(StorageConstants.KEY_PRELOAD_ENABLED, enabled)
+      await this.prefInstance!.flush()
+    } catch (e) {
+      const err = e as BusinessError
+      console.error('StorageManager setPreloadEnabled failed: ' + err.code + ' ' + err.message)
+    }
   }
 }

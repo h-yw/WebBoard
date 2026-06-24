@@ -9,6 +9,12 @@ export enum LogoType {
   CUSTOM = 'custom'
 }
 
+export enum ColorMode {
+  SYSTEM = 'system',
+  LIGHT = 'light',
+  DARK = 'dark'
+}
+
 export interface AppColorsInterface {
   PRIMARY: string
   PRIMARY_DARK: string
@@ -42,11 +48,15 @@ export const AppColors: AppColorsInterface = {
 export interface StorageConstantsInterface {
   STORE_NAME: string
   KEY_WEB_APPS: string
+  KEY_COLOR_MODE: string
+  KEY_PRELOAD_ENABLED: string
 }
 
 export const StorageConstants: StorageConstantsInterface = {
   STORE_NAME: 'webboard_store',
-  KEY_WEB_APPS: 'web_apps'
+  KEY_WEB_APPS: 'web_apps',
+  KEY_COLOR_MODE: 'color_mode',
+  KEY_PRELOAD_ENABLED: 'preload_enabled'
 }
 
 export interface WebBoardConstantsInterface {

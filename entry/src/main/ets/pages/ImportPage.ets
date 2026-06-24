@@ -3,7 +3,7 @@ import { WebAppItem } from '../model/WebAppItem'
 import { StorageManager } from '../util/StorageManager'
 import { FileManager } from '../util/FileManager'
 import { WorkDirectory } from '../util/WorkDirectory'
-import { AppColors, LogoType, SourceType } from '../common/Constants'
+import { LogoType, SourceType } from '../common/Constants'
 
 @Component
 export struct ImportPage {
@@ -129,7 +129,7 @@ export struct ImportPage {
     Text(title)
       .fontSize(13)
       .fontWeight(FontWeight.Medium)
-      .fontColor(AppColors.TEXT_MUTED)
+      .fontColor($r('app.color.app_text_muted'))
       .letterSpacing(0.5)
       .margin({ left: 20, top: 20, bottom: 8 })
   }
@@ -152,7 +152,7 @@ export struct ImportPage {
             }
             .height(48)
             .borderRadius(10)
-            .backgroundColor(AppColors.PRIMARY)
+            .backgroundColor($r('app.color.app_primary'))
             .width('90%')
             .onClick(() => {
               this.pickHtmlFile()
@@ -164,7 +164,7 @@ export struct ImportPage {
                   .fontSize(14)
                 Text(this.statusMessage)
                   .fontSize(13)
-                  .fontColor(this.importMode === 'none' ? '#EF4444' : '#64748B')
+                  .fontColor(this.importMode === 'none' ? $r('app.color.app_error') : $r('app.color.app_info'))
               }
               .margin({ left: 20, right: 20, top: 12 })
             }
@@ -178,7 +178,7 @@ export struct ImportPage {
                   .height(48)
                   .margin({ left: 16, right: 16 })
                   .borderRadius(10)
-                  .backgroundColor(AppColors.CARD_BG)
+                  .backgroundColor($r('app.color.app_card_bg'))
                   .padding({ left: 12, right: 12 })
                   .onChange((value: string) => {
                     this.appName = value
@@ -191,7 +191,7 @@ export struct ImportPage {
                   .height(80)
                   .margin({ left: 16, right: 16 })
                   .borderRadius(10)
-                  .backgroundColor(AppColors.CARD_BG)
+                  .backgroundColor($r('app.color.app_card_bg'))
                   .padding({ left: 12, right: 12 })
                   .maxLength(100)
                   .onChange((value: string) => {
@@ -219,7 +219,7 @@ export struct ImportPage {
                     .borderRadius(14)
                     .linearGradient({
                       angle: 135,
-                      colors: [[AppColors.PRIMARY, 0.0], [AppColors.PRIMARY_DARK, 1.0]]
+                      colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
                     })
                     .alignContent(Alignment.Center)
                   }
@@ -236,7 +236,7 @@ export struct ImportPage {
                     }
                     .height(32)
                     .borderRadius(8)
-                    .backgroundColor(AppColors.PRIMARY)
+                    .backgroundColor($r('app.color.app_primary'))
                     .onClick(() => {
                       this.pickLogoImage()
                     })
@@ -246,16 +246,16 @@ export struct ImportPage {
                         Row({ space: 4 }) {
                           Text('Aa')
                             .fontSize(14)
-                            .fontColor(AppColors.TEXT_SECONDARY)
+                            .fontColor($r('app.color.app_text_secondary'))
                           Text('使用首字母')
                             .fontSize(13)
-                            .fontColor(AppColors.TEXT_SECONDARY)
+                            .fontColor($r('app.color.app_text_secondary'))
                         }
                       }
                       .height(32)
                       .borderRadius(8)
-                      .backgroundColor(Color.White)
-                      .border({ width: 1, color: AppColors.BORDER })
+                      .backgroundColor($r('app.color.app_card_bg'))
+                      .border({ width: 1, color: $r('app.color.app_border') })
                       .onClick(() => {
                         this.resetLogo()
                       })
@@ -284,7 +284,7 @@ export struct ImportPage {
             }
             .height(50)
             .borderRadius(12)
-            .backgroundColor(this.importMode !== 'none' ? AppColors.PRIMARY : AppColors.TEXT_DISABLED)
+            .backgroundColor(this.importMode !== 'none' ? $r('app.color.app_primary') : $r('app.color.app_text_disabled'))
             .width('90%')
             .margin({ top: 28, bottom: 32 })
             .enabled(this.importMode !== 'none')
@@ -299,7 +299,7 @@ export struct ImportPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(AppColors.BACKGROUND)
+      .backgroundColor($r('app.color.app_background'))
     }
     .title('导入 HTML 应用')
   }
