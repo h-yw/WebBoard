@@ -117,6 +117,7 @@ export struct EditPage {
         await storageMgr.saveAll(items)
       }
 
+      AppStorage.setOrCreate('dataChanged', true)
       this.getUIContext().getPromptAction().showToast({ message: '保存成功' })
       this.navPathStack?.pop()
     } catch (e) {

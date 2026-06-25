@@ -32,11 +32,11 @@ struct Index {
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
+  @StorageProp('dataChanged') @Watch('onDataChanged') dataChanged: boolean = false
   private dataSource: AppDataSource = new AppDataSource()
   private storageMgr: StorageManager | null = null
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
-  private dataChanged: boolean = false
 
   getFilteredApps(): WebAppItem[] {
     if (!this.appList || this.appList.length === 0) {
@@ -72,9 +72,13 @@ struct Index {
   }
 
   onPageShow(): void {
+    // dataChanged 通过 @Watch 自动触发，无需手动检查
+  }
+
+  onDataChanged(): void {
     if (this.dataChanged) {
       this.loadApps()
-      this.dataChanged = false
+      AppStorage.setOrCreate('dataChanged', false)
     }
   }
 
@@ -91,7 +95,7 @@ struct Index {
     item.createTime = Date.now()
     if (this.storageMgr) {
       await this.storageMgr.add(item)
-      this.dataChanged = true
+      AppStorage.setOrCreate('dataChanged', true)
     }
   }
 
@@ -270,7 +274,6 @@ struct Index {
         }
       }
     }
-    this.dataChanged = true
     await this.loadApps()
     try {
       this.getUIContext().getPromptAction().showToast({ message: '已删除' })

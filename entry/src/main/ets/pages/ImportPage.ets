@@ -116,6 +116,7 @@ export struct ImportPage {
       const storageMgr = StorageManager.getInstance(this.context)
       await storageMgr.add(item)
 
+      AppStorage.setOrCreate('dataChanged', true)
       this.getUIContext().getPromptAction().showToast({ message: '导入成功' })
       this.navPathStack?.pop()
     } catch (e) {
