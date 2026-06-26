@@ -68,6 +68,7 @@ WebBoard 是一个 HarmonyOS 应用，用于管理和渲染 HTML 内容。用户
 ### Bug 修复
 
 - [x] 修复 Radio onChange 在程序化变更时触发导致状态回弹的问题
+- [x] 修复导入后列表不更新的问题（使用 AppStorage + @StorageProp @Watch 实现跨组件状态同步）
 - [x] 记录踩坑经验到 docs/arkts-pitfalls.md
 
 ### 技术债务清理

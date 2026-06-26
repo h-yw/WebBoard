@@ -359,7 +359,7 @@ struct Index {
   CardItem(item: WebAppItem) {
     Row() {
       if (item.logoType === LogoType.CUSTOM && item.logoUri.length > 0) {
-        Image(item.logoUri)
+        Image('file://' + item.logoUri)
           .width(56)
           .height(56)
           .borderRadius(12)
@@ -439,7 +439,7 @@ struct Index {
   GridCardItem(item: WebAppItem) {
     Column({ space: 8 }) {
       if (item.logoType === LogoType.CUSTOM && item.logoUri.length > 0) {
-        Image(item.logoUri)
+        Image('file://' + item.logoUri)
           .width(64)
           .height(64)
           .borderRadius(14)

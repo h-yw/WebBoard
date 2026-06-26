@@ -21,6 +21,10 @@ export struct EditPage {
   @State logoUri: string = ''
   @State logoType: string = LogoType.INITIAL
   @State statusMessage: string = ''
+  @State hasUnsavedChanges: boolean = false
+  @State isSaving: boolean = false
+  @State nameCharCount: number = 0
+  @State descCharCount: number = 0
   private appId: string = ''
   private entryHtml: string = ''
   private context: common.UIAbilityContext | null = null
@@ -39,8 +43,31 @@ export struct EditPage {
         this.logoType = paramObj[0].logoType || LogoType.INITIAL
         this.logoUri = paramObj[0].logoUri || ''
         this.entryHtml = paramObj[0].entryHtml || ''
+        this.nameCharCount = this.appName.length
+        this.descCharCount = this.appDescription.length
       }
     }
+  }
+
+  onBackPress(): boolean {
+    if (this.hasUnsavedChanges) {
+      this.getUIContext().showAlertDialog({
+        title: '未保存的修改',
+        message: '您有未保存的修改，确定要离开吗？',
+        primaryButton: {
+          value: '离开',
+          action: () => {
+            this.navPathStack?.pop()
+          }
+        },
+        secondaryButton: {
+          value: '取消',
+          action: () => {}
+        }
+      })
+      return true
+    }
+    return false
   }
 
   getInitial(): string {
@@ -81,13 +108,14 @@ export struct EditPage {
       return
     }
 
+    this.isSaving = true
+    this.statusMessage = '正在保存...'
+
     const workDir = WorkDirectory.getPath(this.context)
     WorkDirectory.ensureDirectory(this.context)
     const fileMgr = new FileManager(this.context)
 
     try {
-      this.statusMessage = '正在保存...'
-
       const item = new WebAppItem()
       item.id = this.appId
       item.name = this.appName.trim()
@@ -118,158 +146,239 @@ export struct EditPage {
       }
 
       AppStorage.setOrCreate('dataChanged', true)
+      this.hasUnsavedChanges = false
       this.getUIContext().getPromptAction().showToast({ message: '保存成功' })
-      this.navPathStack?.pop()
+      setTimeout(() => {
+        this.navPathStack?.pop()
+      }, 500)
     } catch (e) {
       this.statusMessage = '保存失败'
+    } finally {
+      this.isSaving = false
     }
-  }
-
-  @Builder
-  SectionTitle(title: string) {
-    Text(title)
-      .fontSize(13)
-      .fontWeight(FontWeight.Medium)
-      .fontColor($r('app.color.app_text_muted'))
-      .letterSpacing(0.5)
-      .margin({ left: 20, top: 20, bottom: 8 })
   }
 
   build() {
     NavDestination() {
       Column() {
         Scroll() {
-          Column() {
-            this.SectionTitle('应用名称')
+          Column({ space: 16 }) {
+            // 应用名称卡片
+            Column({ space: 8 }) {
+              Row() {
+                Text('应用名称')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_muted'))
+                  .layoutWeight(1)
+                Text(this.nameCharCount.toString() + '/50')
+                  .fontSize(12)
+                  .fontColor($r('app.color.app_text_disabled'))
+              }
+              .width('100%')
 
-            TextInput({ placeholder: '输入应用名称', text: this.appName })
-              .fontSize(15)
-              .height(48)
-              .margin({ left: 16, right: 16 })
-              .borderRadius(10)
-              .backgroundColor($r('app.color.app_card_bg'))
-              .padding({ left: 12, right: 12 })
-              .onChange((value: string) => {
-                this.appName = value
-              })
+              TextInput({ placeholder: '输入应用名称', text: this.appName })
+                .fontSize(15)
+                .height(48)
+                .width('100%')
+                .borderRadius(10)
+                .backgroundColor($r('app.color.app_background'))
+                .padding({ left: 12, right: 12 })
+                .maxLength(50)
+                .onChange((value: string) => {
+                  this.appName = value
+                  this.nameCharCount = value.length
+                  this.hasUnsavedChanges = true
+                })
+            }
+            .width('100%')
+            .padding(16)
+            .borderRadius(12)
+            .backgroundColor($r('app.color.app_card_bg'))
 
-            this.SectionTitle('应用描述')
+            // 应用描述卡片
+            Column({ space: 8 }) {
+              Row() {
+                Text('应用描述')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_muted'))
+                  .layoutWeight(1)
+                Text(this.descCharCount.toString() + '/100')
+                  .fontSize(12)
+                  .fontColor($r('app.color.app_text_disabled'))
+              }
+              .width('100%')
 
-            TextInput({ placeholder: '输入应用描述（可选）', text: this.appDescription })
-              .fontSize(15)
-              .height(80)
-              .margin({ left: 16, right: 16 })
-              .borderRadius(10)
-              .backgroundColor($r('app.color.app_card_bg'))
-              .padding({ left: 12, right: 12 })
-              .maxLength(100)
-              .onChange((value: string) => {
-                this.appDescription = value
-              })
+              TextInput({ placeholder: '输入应用描述（可选）', text: this.appDescription })
+                .fontSize(15)
+                .height(80)
+                .width('100%')
+                .borderRadius(10)
+                .backgroundColor($r('app.color.app_background'))
+                .padding({ left: 12, right: 12 })
+                .maxLength(100)
+                .onChange((value: string) => {
+                  this.appDescription = value
+                  this.descCharCount = value.length
+                  this.hasUnsavedChanges = true
+                })
+            }
+            .width('100%')
+            .padding(16)
+            .borderRadius(12)
+            .backgroundColor($r('app.color.app_card_bg'))
 
-            this.SectionTitle('应用图标')
+            // 应用图标卡片
+            Column({ space: 12 }) {
+              Text('应用图标')
+                .fontSize(13)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.app_text_muted'))
+                .width('100%')
 
-            Row() {
-              if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
-                Image(this.logoUri)
+              Row({ space: 16 }) {
+                if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
+                  Image('file://' + this.logoUri)
+                    .width(64)
+                    .height(64)
+                    .borderRadius(14)
+                    .objectFit(ImageFit.Cover)
+                    .border({ width: 2, color: $r('app.color.app_primary') })
+                } else {
+                  Stack() {
+                    Text(this.getInitial())
+                      .fontSize(28)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(Color.White)
+                  }
                   .width(64)
                   .height(64)
                   .borderRadius(14)
-                  .objectFit(ImageFit.Cover)
-              } else {
-                Stack() {
-                  Text(this.getInitial())
-                    .fontSize(28)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(Color.White)
+                  .linearGradient({
+                    angle: 135,
+                    colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+                  })
+                  .alignContent(Alignment.Center)
                 }
-                .width(64)
-                .height(64)
-                .borderRadius(14)
-                .linearGradient({
-                  angle: 135,
-                  colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
-                })
-                .alignContent(Alignment.Center)
-              }
 
-              Column({ space: 8 }) {
-                Button() {
-                  Row({ space: 4 }) {
-                    SymbolGlyph($r('sys.symbol.picture'))
-                      .fontSize(14)
-                      .fontColor([Color.White])
-                    Text('选择图片')
-                      .fontSize(13)
-                      .fontColor(Color.White)
-                  }
-                }
-                .height(32)
-                .borderRadius(8)
-                .backgroundColor($r('app.color.app_primary'))
-                .onClick(() => {
-                  this.pickLogoImage()
-                })
-
-                if (this.logoType === LogoType.CUSTOM) {
+                Column({ space: 8 }) {
                   Button() {
                     Row({ space: 4 }) {
-                      Text('Aa')
+                      SymbolGlyph($r('sys.symbol.picture'))
                         .fontSize(14)
-                        .fontColor($r('app.color.app_text_secondary'))
-                      Text('使用首字母')
+                        .fontColor([Color.White])
+                      Text('选择图片')
                         .fontSize(13)
-                        .fontColor($r('app.color.app_text_secondary'))
+                        .fontColor(Color.White)
                     }
                   }
-                  .height(32)
+                  .height(36)
                   .borderRadius(8)
-                  .backgroundColor($r('app.color.app_card_bg'))
-                  .border({ width: 1, color: $r('app.color.app_border') })
+                  .backgroundColor($r('app.color.app_primary'))
                   .onClick(() => {
-                    this.resetLogo()
+                    this.pickLogoImage()
                   })
+
+                  if (this.logoType === LogoType.CUSTOM) {
+                    Button() {
+                      Row({ space: 4 }) {
+                        Text('Aa')
+                          .fontSize(14)
+                          .fontColor($r('app.color.app_text_secondary'))
+                        Text('使用首字母')
+                          .fontSize(13)
+                          .fontColor($r('app.color.app_text_secondary'))
+                      }
+                    }
+                    .height(36)
+                    .borderRadius(8)
+                    .backgroundColor($r('app.color.app_card_bg'))
+                    .border({ width: 1, color: $r('app.color.app_border') })
+                    .onClick(() => {
+                      this.resetLogo()
+                      this.hasUnsavedChanges = true
+                    })
+                  }
                 }
+                .layoutWeight(1)
               }
-              .margin({ left: 16 })
+              .width('100%')
             }
             .width('100%')
-            .padding({ left: 20, right: 20 })
-            .margin({ top: 4 })
-            .alignItems(VerticalAlign.Center)
+            .padding(16)
+            .borderRadius(12)
+            .backgroundColor($r('app.color.app_card_bg'))
 
+            // 状态消息
             if (this.statusMessage.length > 0) {
-              Text(this.statusMessage)
-                .fontSize(13)
-                .fontColor($r('app.color.app_text_secondary'))
-                .margin({ left: 20, right: 20, top: 12 })
+              Row({ space: 8 }) {
+                if (this.statusMessage.includes('失败')) {
+                  SymbolGlyph($r('sys.symbol.exclamationmark_circle'))
+                    .fontSize(16)
+                    .fontColor([$r('app.color.app_error')])
+                } else if (this.statusMessage.includes('成功')) {
+                  SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+                    .fontSize(16)
+                    .fontColor([$r('app.color.app_success')])
+                } else {
+                  LoadingProgress()
+                    .width(16)
+                    .height(16)
+                    .color($r('app.color.app_primary'))
+                }
+                Text(this.statusMessage)
+                  .fontSize(13)
+                  .fontColor(this.statusMessage.includes('失败') ? $r('app.color.app_error') : 
+                    this.statusMessage.includes('成功') ? $r('app.color.app_success') : $r('app.color.app_text_secondary'))
+              }
+              .width('100%')
+              .padding(12)
+              .borderRadius(8)
+              .backgroundColor(this.statusMessage.includes('失败') ? '#FEF2F2' : 
+                this.statusMessage.includes('成功') ? '#F0FDF4' : $r('app.color.app_card_bg'))
             }
 
+            // 保存按钮
             Button() {
-              Row({ space: 6 }) {
-                SymbolGlyph($r('sys.symbol.save'))
-                  .fontSize(16)
-                  .fontColor([Color.White])
-                Text('保存修改')
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(Color.White)
+              if (this.isSaving) {
+                Row({ space: 8 }) {
+                  LoadingProgress()
+                    .width(20)
+                    .height(20)
+                    .color(Color.White)
+                  Text('保存中...')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(Color.White)
+                }
+              } else {
+                Row({ space: 6 }) {
+                  SymbolGlyph($r('sys.symbol.save'))
+                    .fontSize(16)
+                    .fontColor([Color.White])
+                  Text('保存修改')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(Color.White)
+                }
               }
             }
             .height(50)
             .borderRadius(12)
-            .backgroundColor(this.appName.trim().length > 0 ? $r('app.color.app_primary') : $r('app.color.app_text_disabled'))
-            .width('90%')
-            .margin({ top: 28, bottom: 32 })
-            .enabled(this.appName.trim().length > 0)
+            .backgroundColor(this.appName.trim().length > 0 && !this.isSaving ? $r('app.color.app_primary') : $r('app.color.app_text_disabled'))
+            .width('100%')
+            .enabled(this.appName.trim().length > 0 && !this.isSaving)
             .onClick(() => {
               this.handleSave()
             })
           }
-          .width('100%')
+          .width('90%')
+          .margin({ top: 16, bottom: 32 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
       }
       .width('100%')
       .height('100%')
