@@ -30,7 +30,6 @@
       C 254 400 404 180 512 160
       Z"
       fill="url(#leafGrad)"/>
-
     <path d="
       M 512 160
       C 620 180 770 400 770 540
@@ -41,57 +40,48 @@
       fill="#FFFFFF" fill-opacity="0.45"/>
   </g>
 
-  <!-- ========== 叶脉系统 ========== -->
-  <!-- 叶脉终点坐标（用于节点对齐）：
-       左侧: (330,570) (320,470) (370,340) (440,265)
-       右侧: (700,570) (710,470) (660,340) (585,265) -->
+  <!-- ========== 羽状主叶脉（V 字形分叉） ========== -->
   <g fill="none" stroke="url(#veinGrad)" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 主叶脉 -->
     <path d="M 512 830 Q 514 550 512 180" stroke-width="4.5"/>
-
-    <!-- 左侧叶脉 -->
-    <path d="M 513 710 Q 420 650 330 570" stroke-width="3"/>
-    <path d="M 513 580 Q 420 500 320 470" stroke-width="2.5"/>
-    <path d="M 512 460 Q 440 390 370 340" stroke-width="2.2"/>
-    <path d="M 512 340 Q 470 300 440 265" stroke-width="1.8"/>
-
-    <!-- 右侧叶脉 -->
-    <path d="M 513 710 Q 610 650 700 570" stroke-width="3"/>
-    <path d="M 513 580 Q 610 500 710 470" stroke-width="2.5"/>
-    <path d="M 512 460 Q 590 390 660 340" stroke-width="2.2"/>
-    <path d="M 512 340 Q 555 300 585 265" stroke-width="1.8"/>
+    <path d="M 510 730 Q 420 690 330 600" stroke-width="3"/>
+    <path d="M 511 630 Q 410 580 310 510" stroke-width="2.8"/>
+    <path d="M 511 530 Q 420 480 320 420" stroke-width="2.5"/>
+    <path d="M 512 440 Q 440 400 370 355" stroke-width="2.2"/>
+    <path d="M 512 350 Q 465 320 430 290" stroke-width="1.8"/>
+    <path d="M 510 730 Q 600 690 700 600" stroke-width="3"/>
+    <path d="M 511 630 Q 610 580 720 510" stroke-width="2.8"/>
+    <path d="M 511 530 Q 610 480 710 420" stroke-width="2.5"/>
+    <path d="M 512 440 Q 580 400 660 355" stroke-width="2.2"/>
+    <path d="M 512 350 Q 560 320 600 290" stroke-width="1.8"/>
   </g>
 
-  <!-- ========== 横向连接弦 ========== -->
-  <!-- 每根弦连接左右对应叶脉终点 -->
+  <!-- ========== 横向连接弦（连接左右对应叶脉终点，形成网络） ========== -->
   <g fill="none" stroke="url(#veinGrad)" stroke-width="1.8" stroke-opacity="0.35" stroke-linecap="round">
-    <path d="M 330 570 Q 420 555 512 565 Q 600 555 700 570"/>
-    <path d="M 320 470 Q 420 458 512 465 Q 600 458 710 470"/>
-    <path d="M 370 340 Q 440 332 512 338 Q 580 332 660 340"/>
+    <path d="M 330 600 Q 420 585 512 590 Q 610 585 700 600"/>
+    <path d="M 310 510 Q 410 498 512 505 Q 620 498 720 510"/>
+    <path d="M 320 420 Q 420 408 512 415 Q 620 408 710 420"/>
+    <path d="M 370 355 Q 440 345 512 350 Q 590 345 660 355"/>
   </g>
 
-  <!-- ========== 叶脉终点节点（紫圆点） ========== -->
-  <!-- 坐标与叶脉终点完全一致 -->
+  <!-- ========== 叶脉末端节点 ========== -->
   <g fill="#6366F1">
-    <!-- 第1对 -->
-    <circle cx="330" cy="570" r="5"/>
-    <circle cx="700" cy="570" r="5"/>
-    <!-- 第2对 -->
-    <circle cx="320" cy="470" r="4.5"/>
-    <circle cx="710" cy="470" r="4.5"/>
-    <!-- 第3对 -->
-    <circle cx="370" cy="340" r="4"/>
-    <circle cx="660" cy="340" r="4"/>
-    <!-- 第4对（最上方短叶脉） -->
-    <circle cx="440" cy="265" r="3.5"/>
-    <circle cx="585" cy="265" r="3.5"/>
+    <circle cx="330" cy="600" r="4.5"/>
+    <circle cx="700" cy="600" r="4.5"/>
+    <circle cx="310" cy="510" r="4"/>
+    <circle cx="720" cy="510" r="4"/>
+    <circle cx="320" cy="420" r="3.5"/>
+    <circle cx="710" cy="420" r="3.5"/>
+    <circle cx="370" cy="355" r="3"/>
+    <circle cx="660" cy="355" r="3"/>
   </g>
 
-  <!-- ========== 白色小圆点（在弦与主脉的交点附近） ========== -->
+  <!-- ========== 白色小圆点（数据包/露珠） ========== -->
   <g fill="#FFFFFF">
-    <circle cx="440" cy="562" r="3" fill-opacity="0.8"/>
-    <circle cx="580" cy="562" r="3" fill-opacity="0.8"/>
-    <circle cx="430" cy="463" r="2.8" fill-opacity="0.7"/>
-    <circle cx="590" cy="463" r="2.8" fill-opacity="0.7"/>
+    <circle cx="440" cy="588" r="2.8" fill-opacity="0.8"/>
+    <circle cx="580" cy="588" r="2.8" fill-opacity="0.8"/>
+    <circle cx="420" cy="503" r="2.5" fill-opacity="0.7"/>
+    <circle cx="600" cy="503" r="2.5" fill-opacity="0.7"/>
+    <circle cx="425" cy="413" r="2.2" fill-opacity="0.6"/>
+    <circle cx="595" cy="413" r="2.2" fill-opacity="0.6"/>
   </g>
 </svg>
