@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JSBridge 测试页</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: #F1F5F9;
+    color: #0F172A;
+    padding: 16px;
+    padding-bottom: 40px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #64748B;
+    margin-bottom: 20px;
+  }
+  .section {
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  .card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 12px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .method-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+  .method-desc {
+    font-size: 12px;
+    color: #94A3B8;
+    margin-top: 2px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    background: #6366F1;
+    color: #FFFFFF;
+    min-width: 80px;
+  }
+  .btn:active { opacity: 0.7; transform: scale(0.96); }
+  .btn-secondary { background: #F1F5F9; color: #475569; }
+  .btn-success { background: #10B981; }
+  .btn-warning { background: #F59E0B; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .result-box {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 13px;
+    font-family: 'SF Mono', Menlo, monospace;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    color: #334155;
+    display: none;
+  }
+  .result-box.show { display: block; }
+  .result-box .label { color: #6366F1; font-weight: 500; }
+  .result-box .value { color: #0F172A; }
+  .result-box .json-key { color: #8B5CF6; }
+  .result-box .json-string { color: #059669; }
+  .result-box .json-number { color: #D97706; }
+  .result-box .json-null { color: #94A3B8; }
+  .status-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .status-ready { background: #DBEAFE; color: #1D4ED8; }
+  .status-loading { background: #FEF3C7; color: #B45309; }
+  .status-done { background: #D1FAE5; color: #047857; }
+  .status-error { background: #FEE2E2; color: #B91C1C; }
+  .loading-dots::after {
+    content: '...';
+    animation: dots 1.5s steps(3, end) infinite;
+  }
+  @keyframes dots { 0% { content: ''; } 33% { content: '.'; } 66% { content: '..'; } 100% { content: '...'; } }
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1E293B;
+    color: #FFF;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>🧪 JSBridge 测试页</h1>
+<p class="subtitle">测试所有 JSBridge 方法调用并查看返回结果</p>
+
+<div class="section">
+  <div class="section-title">📡 连接状态</div>
+  <div class="card">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span id="bridgeStatus" class="status-badge status-ready">就绪</span>
+      <span style="font-size:13px; color:#64748B;">JSBridge</span>
+    </div>
+  </div>
+</div>
+
+<!-- 1. getAppInfo -->
+<div class="section">
+  <div class="section-title">📱 应用信息</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">getAppInfo</div>
+        <div class="method-desc">获取应用名称、版本、网络状态、设备信息</div>
+      </div>
+      <button class="btn" id="btnAppInfo" onclick="callGetAppInfo()">获取信息</button>
+    </div>
+    <div class="result-box" id="resultAppInfo"></div>
+  </div>
+</div>
+
+<!-- 2. modifyNavStyle -->
+<div class="section">
+  <div class="section-title">🎨 导航栏控制</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">modifyNavStyle</div>
+        <div class="method-desc">切换导航栏模式（0=隐藏，1=透明）</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-warning" onclick="callModifyNavStyle(0)">隐藏导航</button>
+      <button class="btn" onclick="callModifyNavStyle(1)">透明导航</button>
+      <button class="btn btn-secondary" onclick="callModifyNavStyle(-1, '自定义标题')">设标题</button>
+    </div>
+    <div class="result-box" id="resultNavStyle"></div>
+  </div>
+</div>
+
+<!-- 3. systemShare -->
+<div class="section">
+  <div class="section-title">📤 系统分享</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">systemShare</div>
+        <div class="method-desc">调起系统分享面板</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="callSystemShare('text')">分享文本</button>
+      <button class="btn btn-success" onclick="callSystemShare('url')">分享链接</button>
+    </div>
+    <div class="result-box" id="resultShare"></div>
+  </div>
+</div>
+
+<!-- 4. systemImagePick -->
+<div class="section">
+  <div class="section-title">🖼️ 图片选择</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">systemImagePick</div>
+        <div class="method-desc">从系统相册选择图片（最多 3 张）</div>
+      </div>
+      <button class="btn" onclick="callImagePick()">选择图片</button>
+    </div>
+    <div class="result-box" id="resultImagePick"></div>
+    <div id="imagePreview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- 5. vibrate -->
+<div class="section">
+  <div class="section-title">📳 震动</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">vibrate</div>
+        <div class="method-desc">触发设备震动测试</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-warning" onclick="callVibrate(200, 1)">短震一次</button>
+      <button class="btn btn-warning" onclick="callVibrate(300, 3)">连震三次</button>
+    </div>
+    <div class="result-box" id="resultVibrate"></div>
+  </div>
+</div>
+
+<!-- 6. onBackPress -->
+<div class="section">
+  <div class="section-title">🔙 返回拦截</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">onBackPress</div>
+        <div class="method-desc">注册返回拦截回调。点「阻止返回」后按系统返回键测试</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-warning" id="btnRegisterBack" onclick="registerBackPress()">注册拦截</button>
+    </div>
+    <div class="result-box" id="resultBackPress"></div>
+    <div style="margin-top:8px; font-size:12px; color:#94A3B8;">
+      <span id="backStatus">● 未注册返回拦截</span>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== 工具函数 =====================
+function showResult(id, data, status) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.className = 'result-box show'
+  const statusText = status === 'ok' ? '✅ 成功' : '❌ 失败'
+  const formatted = formatJSON(data)
+  el.innerHTML = `<span class="label">状态:</span> ${statusText}\n<span class="label">结果:</span>\n${formatted}`
+}
+
+function formatJSON(obj) {
+  if (obj === null || obj === undefined) return '<span class="json-null">null</span>'
+  const json = JSON.stringify(obj, null, 2)
+  // 简单语法高亮
+  return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+    .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+    .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="json-number">$1</span>')
+    .replace(/: (null)/g, ': <span class="json-null">$1</span>')
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = 'toast show'
+  setTimeout(() => { el.className = 'toast' }, 2000)
+}
+
+function setBridgeStatus(text, className) {
+  const el = document.getElementById('bridgeStatus')
+  if (el) { el.textContent = text; el.className = 'status-badge ' + className }
+}
+
+function isLoading(text) {
+  return text + '...'
+}
+
+// ===================== JSBridge 调用 =====================
+
+// 1. getAppInfo
+function callGetAppInfo() {
+  const btn = document.getElementById('btnAppInfo')
+  btn.textContent = isLoading('获取中')
+  btn.disabled = true
+  window.JSBridge.call('getAppInfo', {}, function(res) {
+    btn.textContent = '获取信息'
+    btn.disabled = false
+    showResult('resultAppInfo', res.data, res.status)
+  })
+}
+
+// 2. modifyNavStyle
+function callModifyNavStyle(style, title) {
+  const params = { style: style }
+  if (title) params.title = title
+  window.JSBridge.call('modifyNavStyle', params, function(res) {
+    const statusMap = { 0: '隐藏导航', 1: '透明导航', '-1': '自定义标题' }
+    showToast('导航已切换: ' + (statusMap[String(style)] || 'style=' + style) + (title ? ' (' + title + ')' : ''))
+    showResult('resultNavStyle', { style: style, title: title || null, nativeStatus: res.status }, res.status)
+  })
+}
+
+// 3. systemShare
+function callSystemShare(type) {
+  const params = {
+    content: type === 'text' ? '来自浮叶 WebLeaf 的分享测试' : '测试分享链接',
+    title: '浮叶 WebLeaf',
+    url: type === 'url' ? 'https://hlovez.life' : ''
+  }
+  window.JSBridge.call('systemShare', params, function(res) {
+    showResult('resultShare', res.data || { message: '分享面板已关闭' }, res.status)
+  })
+}
+
+// 4. systemImagePick
+function callImagePick() {
+  window.JSBridge.call('systemImagePick', { count: 3 }, function(res) {
+    showResult('resultImagePick', res.data, res.status)
+    if (res.status === 'ok' && res.data && res.data.length > 0) {
+      const container = document.getElementById('imagePreview')
+      container.innerHTML = ''
+      for (let i = 0; i < res.data.length; i++) {
+        const item = res.data[i]
+        if (item.base64) {
+          const img = document.createElement('img')
+          img.src = 'data:image/png;base64,' + item.base64
+          img.style.cssText = 'width:80px;height:80px;border-radius:8px;object-fit:cover;border:1px solid #E2E8F0;'
+          container.appendChild(img)
+        }
+      }
+    }
+  })
+}
+
+// 5. vibrate
+function callVibrate(duration, count) {
+  window.JSBridge.call('vibrate', { duration: duration, count: count }, function(res) {
+    showToast('震动 ' + count + ' 次，每次 ' + duration + 'ms')
+    showResult('resultVibrate', { duration: duration, count: count, status: res.status }, res.status)
+  })
+}
+
+// 6. onBackPress - 返回拦截
+var backPressRegistered = false
+function registerBackPress() {
+  if (backPressRegistered) {
+    showToast('已处于拦截模式')
+    return
+  }
+  window.JSBridge.call('onBackPress', { callbackId: 'back_test_001' }, function(res) {
+    if (res.status === 'ok') {
+      backPressRegistered = true
+      const btn = document.getElementById('btnRegisterBack')
+      btn.textContent = '🛑 已拦截'
+      btn.className = 'btn'
+      btn.style.background = '#EF4444'
+      document.getElementById('backStatus').innerHTML = '● <strong>已注册返回拦截</strong> — 现在按系统返回键试试'
+      showResult('resultBackPress', { message: '返回拦截已注册。按系统返回键时，H5 将收到回调。返回 0=允许返回，非 0=阻止返回' }, 'ok')
+      showToast('返回拦截已激活')
+    }
+  })
+}
+
+// ===================== 初始化 =====================
+function init() {
+  // 检测 JSBridge 是否可用
+  if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
+    setBridgeStatus('✅ 已连接', 'status-done')
+    showToast('JSBridge 已就绪')
+    // 自动获取应用信息
+    setTimeout(callGetAppInfo, 500)
+  } else {
+    setBridgeStatus('⏳ 等待连接', 'status-loading')
+    // 轮询等待 JSBridge 初始化
+    var retryCount = 0
+    var timer = setInterval(function() {
+      retryCount++
+      if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
+        setBridgeStatus('✅ 已连接', 'status-done')
+        showToast('JSBridge 已就绪')
+        clearInterval(timer)
+        setTimeout(callGetAppInfo, 500)
+      } else if (retryCount > 20) {
+        setBridgeStatus('❌ 连接超时', 'status-error')
+        document.querySelector('.subtitle').textContent += ' — JSBridge 初始化超时，请刷新页面重试'
+        clearInterval(timer)
+      }
+    }, 500)
+  }
+}
+
+// 页面加载完成后初始化
+if (document.readyState === 'complete') {
+  init()
+} else {
+  window.addEventListener('load', init)
+}
+</script>
+</body>
+</html>

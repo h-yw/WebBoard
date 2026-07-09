@@ -10,6 +10,12 @@
       },
       {
         "name": "ohos.permission.FILE_ACCESS_PERSIST"
+      },
+      {
+        "name": "ohos.permission.VIBRATE"
+      },
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO"
       }
     ],
     "deviceTypes": [

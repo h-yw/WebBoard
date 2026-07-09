@@ -1,0 +1,11 @@
+{
+  "app": {
+    "bundleName": "life.hlovez.webboard",
+    "patchVersionCode": 2000013,
+    "versionCode": 1000000
+  },
+  "module": {
+    "name": "entry",
+    "type": "hotreload"
+  }
+}

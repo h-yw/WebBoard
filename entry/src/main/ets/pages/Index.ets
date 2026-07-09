@@ -68,10 +68,7 @@ struct Index {
     const layoutStr = await this.dbMgr.getSetting('layout_mode', LayoutMode.GRID)
     this.layoutMode = layoutStr
     await this.loadApps()
-    if (this.appList.length === 0) {
-      await this.addPresetApp()
-      await this.loadApps()
-    }
+    await this.ensurePresetApps()
     this.preloadRecentApps()
   }
 
@@ -86,20 +83,50 @@ struct Index {
     }
   }
 
-  async addPresetApp(): Promise<void> {
-    const id = WorkDirectory.generateId()
-    const item = new WebAppItem()
-    item.id = id
-    item.name = '速算估算微练'
-    item.description = '掌握 1/2 到 1/20 的快速转换，提升心算敏感度'
-    item.logoType = LogoType.INITIAL
-    item.logoUri = ''
-    item.entryHtml = 'rawfile://code_artifact.html'
-    item.sourceType = SourceType.PRESET
-    item.createTime = Date.now()
-    if (this.dbMgr) {
+  async ensurePresetApps(): Promise<void> {
+    if (!this.dbMgr) {
+      return
+    }
+    const existingApps = await this.dbMgr.getAllApps()
+    const existingHtmlSet: Set<string> = new Set()
+    for (let i = 0; i < existingApps.length; i++) {
+      existingHtmlSet.add(existingApps[i].entryHtml)
+    }
+    let hasNew: boolean = false
+
+    const presetHtml1: string = 'rawfile://code_artifact.html'
+    if (!existingHtmlSet.has(presetHtml1)) {
+      const item = new WebAppItem()
+      item.id = WorkDirectory.generateId()
+      item.name = '速算估算微练'
+      item.description = '掌握 1/2 到 1/20 的快速转换，提升心算敏感度'
+      item.logoType = LogoType.INITIAL
+      item.logoUri = ''
+      item.entryHtml = presetHtml1
+      item.sourceType = SourceType.PRESET
+      item.createTime = Date.now()
       await this.dbMgr.addApp(item)
+      hasNew = true
+    }
+
+    const presetHtml2: string = 'rawfile://jsbridge_test.html'
+    if (!existingHtmlSet.has(presetHtml2)) {
+      const item = new WebAppItem()
+      item.id = WorkDirectory.generateId()
+      item.name = 'JSBridge 测试'
+      item.description = '测试 JSBridge 所有原生方法调用'
+      item.logoType = LogoType.INITIAL
+      item.logoUri = ''
+      item.entryHtml = presetHtml2
+      item.sourceType = SourceType.PRESET
+      item.createTime = Date.now()
+      await this.dbMgr.addApp(item)
+      hasNew = true
+    }
+
+    if (hasNew) {
       AppStorage.setOrCreate('dataChanged', true)
+      await this.loadApps()
     }
   }
 
@@ -636,7 +663,7 @@ struct Index {
               .backgroundColor($r('app.color.app_card_bg'))
               .border({ width: 1, color: $r('app.color.app_border') })
               .onClick(() => {
-                this.addPresetApp()
+                this.ensurePresetApps()
               })
             }
           }
