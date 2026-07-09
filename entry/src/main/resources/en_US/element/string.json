@@ -307,6 +307,14 @@
     {
       "name": "viewer_no_content",
       "value": "Unable to load page"
+    },
+    {
+      "name": "btn_share",
+      "value": "Share"
+    },
+    {
+      "name": "label_import_url",
+      "value": "Import URL"
     }
   ]
 }

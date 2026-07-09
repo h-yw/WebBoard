@@ -307,6 +307,14 @@
     {
       "name": "viewer_no_content",
       "value": "无法加载页面"
+    },
+    {
+      "name": "btn_share",
+      "value": "分享"
+    },
+    {
+      "name": "label_import_url",
+      "value": "导入网址"
     }
   ]
 }

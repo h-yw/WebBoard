@@ -3,7 +3,7 @@ import { WebAppItem } from '../model/WebAppItem'
 import { DatabaseManager } from '../database/DatabaseManager'
 import { FileManager } from '../util/FileManager'
 import { WorkDirectory } from '../util/WorkDirectory'
-import { LogoType } from '../common/Constants'
+import { LogoType, SourceType } from '../common/Constants'
 import { Dialog } from '../ui/DialogUtil'
 import { Toast } from '../ui/ToastUtil'
 
@@ -14,12 +14,14 @@ interface EditParam {
   logoType: string
   logoUri: string
   entryHtml: string
+  sourceType: string
 }
 
 @Component
 export struct EditPage {
   @State appName: string = ''
   @State appDescription: string = ''
+  @State appUrl: string = ''
   @State logoUri: string = ''
   @State logoType: string = LogoType.INITIAL
   @State statusMessage: string = ''
@@ -29,6 +31,7 @@ export struct EditPage {
   @State descCharCount: number = 0
   private appId: string = ''
   private entryHtml: string = ''
+  private sourceType: string = SourceType.FILE
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack | undefined = undefined
 
@@ -45,6 +48,10 @@ export struct EditPage {
         this.logoType = paramObj[0].logoType || LogoType.INITIAL
         this.logoUri = paramObj[0].logoUri || ''
         this.entryHtml = paramObj[0].entryHtml || ''
+        this.sourceType = paramObj[0].sourceType || SourceType.FILE
+        if (this.sourceType === SourceType.URL) {
+          this.appUrl = this.entryHtml
+        }
         this.nameCharCount = this.appName.length
         this.descCharCount = this.appDescription.length
       }
@@ -84,7 +91,7 @@ export struct EditPage {
       if (uris.length > 0) {
         this.logoUri = uris[0]
         this.logoType = LogoType.CUSTOM
-        this.statusMessage = '已选择 Logo'
+        this.hasUnsavedChanges = true
       }
     } catch (e) {
       this.statusMessage = '选择图片失败'
@@ -94,6 +101,7 @@ export struct EditPage {
   resetLogo(): void {
     this.logoUri = ''
     this.logoType = LogoType.INITIAL
+    this.hasUnsavedChanges = true
   }
 
   async handleSave(): Promise<void> {
@@ -106,7 +114,6 @@ export struct EditPage {
     }
 
     this.isSaving = true
-    this.statusMessage = '正在保存...'
 
     const workDir = WorkDirectory.getPath(this.context)
     WorkDirectory.ensureDirectory(this.context)
@@ -119,8 +126,8 @@ export struct EditPage {
       item.description = this.appDescription.trim()
       item.logoType = this.logoType
       item.logoUri = this.logoUri
-      item.entryHtml = this.entryHtml
-      item.sourceType = 'file'
+      item.entryHtml = this.sourceType === SourceType.URL ? this.appUrl : this.entryHtml
+      item.sourceType = this.sourceType
       item.createTime = Date.now()
 
       if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
@@ -154,16 +161,16 @@ export struct EditPage {
     NavDestination() {
       Column() {
         Scroll() {
-          Column({ space: 16 }) {
-            // 应用名称卡片
+          Column({ space: 12 }) {
+            // ── 应用名称 ──
             Column({ space: 8 }) {
               Row() {
-              Text($r('app.string.label_app_name'))
-                .fontSize(13)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.app_text_muted'))
-                .layoutWeight(1)
-              Text(this.nameCharCount.toString() + '/50')
+                Text($r('app.string.label_app_name'))
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_primary'))
+                  .layoutWeight(1)
+                Text(this.nameCharCount.toString() + '/50')
                   .fontSize(12)
                   .fontColor($r('app.color.app_text_disabled'))
               }
@@ -175,7 +182,7 @@ export struct EditPage {
                 .width('100%')
                 .borderRadius(10)
                 .backgroundColor($r('app.color.app_background'))
-                .padding({ left: 12, right: 12 })
+                .padding({ left: 14, right: 14 })
                 .maxLength(50)
                 .onChange((value: string) => {
                   this.appName = value
@@ -188,27 +195,27 @@ export struct EditPage {
             .borderRadius(12)
             .backgroundColor($r('app.color.app_card_bg'))
 
-            // 应用描述卡片
+            // ── 应用描述 ──
             Column({ space: 8 }) {
               Row() {
-              Text($r('app.string.label_app_desc'))
-                .fontSize(13)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.app_text_muted'))
-                .layoutWeight(1)
-              Text(this.descCharCount.toString() + '/100')
+                Text($r('app.string.label_app_desc'))
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_primary'))
+                  .layoutWeight(1)
+                Text(this.descCharCount.toString() + '/100')
                   .fontSize(12)
                   .fontColor($r('app.color.app_text_disabled'))
               }
               .width('100%')
 
-              TextInput({ placeholder: $r('app.string.label_desc_placeholder_optional'), text: this.appDescription })
+              TextArea({ placeholder: $r('app.string.label_desc_placeholder_optional'), text: this.appDescription })
                 .fontSize(15)
-                .height(80)
+                .height(88)
                 .width('100%')
                 .borderRadius(10)
                 .backgroundColor($r('app.color.app_background'))
-                .padding({ left: 12, right: 12 })
+                .padding({ left: 14, right: 14 })
                 .maxLength(100)
                 .onChange((value: string) => {
                   this.appDescription = value
@@ -221,15 +228,47 @@ export struct EditPage {
             .borderRadius(12)
             .backgroundColor($r('app.color.app_card_bg'))
 
-            // 应用图标卡片
+            // ── 导入网址（仅 URL 类型展示） ──
+            if (this.sourceType === SourceType.URL) {
+              Column({ space: 8 }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.link'))
+                    .fontSize(14)
+                    .fontColor([$r('app.color.app_primary')])
+                    .margin({ right: 6 })
+                  Text($r('app.string.label_import_url'))
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('app.color.app_text_primary'))
+                }
+
+                TextInput({ placeholder: 'https://', text: this.appUrl })
+                  .fontSize(14)
+                  .height(48)
+                  .width('100%')
+                  .borderRadius(10)
+                  .backgroundColor($r('app.color.app_background'))
+                  .padding({ left: 14, right: 14 })
+                  .onChange((value: string) => {
+                    this.appUrl = value
+                    this.hasUnsavedChanges = true
+                  })
+              }
+              .width('100%')
+              .padding(16)
+              .borderRadius(12)
+              .backgroundColor($r('app.color.app_card_bg'))
+            }
+
+            // ── 应用图标 ──
             Column({ space: 12 }) {
               Text($r('app.string.label_app_logo'))
-                .fontSize(13)
+                .fontSize(14)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.app_text_muted'))
+                .fontColor($r('app.color.app_text_primary'))
                 .width('100%')
 
-              Row({ space: 16 }) {
+              Row({ space: 20 }) {
                 if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
                   Image('file://' + this.logoUri)
                     .width(64)
@@ -254,7 +293,7 @@ export struct EditPage {
                   .alignContent(Alignment.Center)
                 }
 
-                Column({ space: 8 }) {
+                Column({ space: 10 }) {
                   Button() {
                     Row({ space: 4 }) {
                       SymbolGlyph($r('sys.symbol.picture'))
@@ -268,6 +307,7 @@ export struct EditPage {
                   .height(36)
                   .borderRadius(8)
                   .backgroundColor($r('app.color.app_primary'))
+                  .width(120)
                   .onClick(() => {
                     this.pickLogoImage()
                   })
@@ -287,13 +327,14 @@ export struct EditPage {
                     .borderRadius(8)
                     .backgroundColor($r('app.color.app_card_bg'))
                     .border({ width: 1, color: $r('app.color.app_border') })
+                    .width(120)
                     .onClick(() => {
                       this.resetLogo()
-                      this.hasUnsavedChanges = true
                     })
                   }
                 }
                 .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
               }
               .width('100%')
             }
@@ -313,28 +354,23 @@ export struct EditPage {
                   SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
                     .fontSize(16)
                     .fontColor([$r('app.color.app_success')])
-                } else {
-                  LoadingProgress()
-                    .width(16)
-                    .height(16)
-                    .color($r('app.color.app_primary'))
                 }
                 Text(this.statusMessage)
                   .fontSize(13)
-                  .fontColor(this.statusMessage.includes('失败') ? $r('app.color.app_error') : 
+                  .fontColor(this.statusMessage.includes('失败') ? $r('app.color.app_error') :
                     this.statusMessage.includes('成功') ? $r('app.color.app_success') : $r('app.color.app_text_secondary'))
               }
               .width('100%')
               .padding(12)
               .borderRadius(8)
-              .backgroundColor(this.statusMessage.includes('失败') ? '#FEF2F2' : 
+              .backgroundColor(this.statusMessage.includes('失败') ? '#FEF2F2' :
                 this.statusMessage.includes('成功') ? '#F0FDF4' : $r('app.color.app_card_bg'))
             }
 
             // 保存按钮
             Button() {
-              if (this.isSaving) {
-                Row({ space: 8 }) {
+              Row({ space: 6 }) {
+                if (this.isSaving) {
                   LoadingProgress()
                     .width(20)
                     .height(20)
@@ -343,9 +379,7 @@ export struct EditPage {
                     .fontSize(16)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(Color.White)
-                }
-              } else {
-                Row({ space: 6 }) {
+                } else {
                   SymbolGlyph($r('sys.symbol.save'))
                     .fontSize(16)
                     .fontColor([Color.White])
@@ -366,7 +400,7 @@ export struct EditPage {
             })
           }
           .width('90%')
-          .margin({ top: 16, bottom: 32 })
+          .margin({ top: 20, bottom: 32 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)

@@ -5,6 +5,10 @@ import { WebPreloader } from '../util/WebPreloader'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileUri } from '@kit.CoreFileKit'
+import { systemShare } from '@kit.ShareKit'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
+import { image } from '@kit.ImageKit'
 import { ImportPage } from './ImportPage'
 import { ViewerPage } from './ViewerPage'
 import { EditPage } from './EditPage'
@@ -12,6 +16,8 @@ import { SettingsPage } from './SettingsPage'
 import { LogoType, SourceType, LayoutMode } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
 import { Logger } from '../common/Logger'
+import { ComponentContent } from '@kit.ArkUI'
+import { AppShareCardBuilder, ShareCardParams } from '../common/AppShareCard'
 
 interface ViewerParam {
   entryHtml: string
@@ -25,6 +31,7 @@ interface EditParam {
   logoType: string
   logoUri: string
   entryHtml: string
+  sourceType: string
 }
 
 @Entry
@@ -236,7 +243,8 @@ struct Index {
       appDescription: item.description,
       logoType: item.logoType,
       logoUri: item.logoUri,
-      entryHtml: item.entryHtml
+      entryHtml: item.entryHtml,
+      sourceType: item.sourceType
     }
     this.navPathStack.pushPath({ name: 'EditPage', param: param })
   }
@@ -250,6 +258,12 @@ struct Index {
           value: $r('app.string.btn_edit'),
           action: () => {
             this.navigateToEdit(item)
+          }
+        },
+        {
+          value: $r('app.string.btn_share'),
+          action: () => {
+            this.shareAppCard(item)
           }
         },
         {
@@ -304,6 +318,56 @@ struct Index {
     }
     await this.loadApps()
     Toast.show('已删除')
+  }
+
+  private async shareAppCard(item: WebAppItem): Promise<void> {
+    try {
+      const uiContext: UIContext = this.getUIContext()
+      const params: ShareCardParams = new ShareCardParams(item.name, item.description)
+      const contentNode: ComponentContent<ShareCardParams> = new ComponentContent(uiContext, wrapBuilder(AppShareCardBuilder), params)
+
+      const pixelMap: PixelMap = await uiContext.getComponentSnapshot()
+        .createFromComponent(contentNode, 360, true, { scale: 2, waitUntilRenderFinished: true })
+
+      const tmpPath: string = (this.context!).filesDir + '/share_card_' + Date.now().toString() + '.png'
+      const packer: image.ImagePacker = image.createImagePacker()
+      try {
+        const packedData: ArrayBuffer = await packer.packToData(pixelMap, {
+          format: 'image/png',
+          quality: 100
+        })
+        const file = fs.openSync(tmpPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE)
+        try {
+          fs.writeSync(file.fd, packedData)
+        } finally {
+          fs.closeSync(file)
+        }
+      } finally {
+        packer.release()
+      }
+
+      const imageUri: string = fileUri.getUriFromPath(tmpPath)
+      const sharedData: systemShare.SharedData = new systemShare.SharedData({
+        utd: utd.UniformDataType.IMAGE,
+        uri: imageUri,
+        title: item.name
+      })
+
+      const controller: systemShare.ShareController = new systemShare.ShareController(sharedData)
+      let shared: boolean = false
+      controller.on('shareCompleted', () => { shared = true })
+      controller.on('dismiss', () => {
+        setTimeout(() => {
+          try {
+            if (fs.accessSync(tmpPath)) { fs.unlinkSync(tmpPath) }
+          } catch (e) { Logger.warn('Index', 'cleanup share temp file failed') }
+        }, 3000)
+      })
+      controller.show(this.context! as common.UIAbilityContext, {})
+    } catch (e) {
+      Logger.error('Index', 'shareAppCard failed: ' + JSON.stringify(e))
+      Toast.show('分享失败')
+    }
   }
 
   private deleteDirectory(dirPath: string): void {
@@ -388,6 +452,7 @@ struct Index {
           .height(56)
           .borderRadius(12)
           .objectFit(ImageFit.Cover)
+          .hitTestBehavior(HitTestMode.None)
       } else {
         Stack() {
           Text(this.getInitial(item.name))
@@ -473,6 +538,7 @@ struct Index {
           .height(64)
           .borderRadius(14)
           .objectFit(ImageFit.Cover)
+          .hitTestBehavior(HitTestMode.None)
       } else {
         Stack() {
           Text(this.getInitial(item.name))
