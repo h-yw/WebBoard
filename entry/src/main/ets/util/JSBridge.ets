@@ -299,27 +299,11 @@ export class JSBridge {
             imageUri = fileUri.getUriFromPath(tmpPath)
           } catch (e) {
             Logger.error('JSBridge', 'download image failed, fallback to url')
-            // 降级为分享链接
-            sharedData = new systemShare.SharedData({
+            this.doShare(new systemShare.SharedData({
               utd: utd.UniformDataType.HYPERLINK,
               content: image,
               title: title
-            })
-            const controller = new systemShare.ShareController(sharedData)
-            let fbShared: boolean = false
-            controller.on('shareCompleted', (fbResult: systemShare.ShareOperationResult) => {
-              fbShared = true
-              const fbPlatform: string = fbResult.targetAbilityInfo.name
-              const fbShareResult: ShareResult = { platform: fbPlatform }
-              this.callback(callId, { status: 'ok', data: fbShareResult as object })
-            })
-            controller.on('dismiss', () => {
-              if (!fbShared) {
-                const fbShareResult: ShareResult = { platform: 'cancelled' }
-                this.callback(callId, { status: 'ok', data: fbShareResult as object })
-              }
-            })
-            controller.show(this.context, {})
+            }), callId)
             return
           }
         } else if (!image.startsWith('file://')) {
@@ -331,14 +315,12 @@ export class JSBridge {
           title: title
         })
       } else if (url.length > 0) {
-        // 分享链接
         sharedData = new systemShare.SharedData({
           utd: utd.UniformDataType.HYPERLINK,
           content: url,
           title: title
         })
       } else {
-        // 分享文本
         sharedData = new systemShare.SharedData({
           utd: utd.UniformDataType.PLAIN_TEXT,
           content: content,
@@ -346,13 +328,22 @@ export class JSBridge {
         })
       }
 
-      const controller = new systemShare.ShareController(sharedData)
+      this.doShare(sharedData, callId)
+    } catch (e) {
+      Logger.error('JSBridge', 'systemShare failed')
+      this.callback(callId, { status: 'error', error: 'systemShare failed' })
+    }
+  }
+
+  private doShare(data: systemShare.SharedData, callId: string): void {
+    try {
+      const controller = new systemShare.ShareController(data)
       let sharedToTarget: boolean = false
 
       controller.on('shareCompleted', (result: systemShare.ShareOperationResult) => {
         sharedToTarget = true
         const platform: string = result.targetAbilityInfo.name
-        const shareResult: ShareResult = { platform: platform }
+        const shareResult: ShareResult = { platform: platform.length > 0 ? platform : 'unknown' }
         this.callback(callId, { status: 'ok', data: shareResult as object })
       })
 
@@ -365,7 +356,7 @@ export class JSBridge {
 
       controller.show(this.context, {})
     } catch (e) {
-      Logger.error('JSBridge', 'systemShare failed')
+      Logger.error('JSBridge', 'doShare failed')
       this.callback(callId, { status: 'error', error: 'systemShare failed' })
     }
   }
