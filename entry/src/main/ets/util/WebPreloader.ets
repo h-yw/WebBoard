@@ -1,6 +1,8 @@
 import { webview } from '@kit.ArkWeb'
 import { WebBoardConstants } from '../common/Constants'
 
+const STALE_ENTRY_MS = 5 * 60 * 1000 // 5 minutes
+
 interface PreloadEntry {
   key: string
   src: string
@@ -23,6 +25,19 @@ export class WebPreloader {
     return WebPreloader.instance
   }
 
+  private cleanStale(): void {
+    const now = Date.now()
+    this.entries = this.entries.filter(e => (now - e.timestamp) < STALE_ENTRY_MS)
+  }
+
+  private evictLRU(): void {
+    if (this.entries.length === 0) {
+      return
+    }
+    this.entries.sort((a, b) => a.timestamp - b.timestamp)
+    this.entries.shift()
+  }
+
   recordAccess(key: string): void {
     const index = this.recentKeys.indexOf(key)
     if (index > -1) {
@@ -39,6 +54,14 @@ export class WebPreloader {
   }
 
   preload(key: string, src: string): void {
+    // Skip preloading for network URLs (loaded directly from the web)
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      return
+    }
+
+    // Clean stale entries on each preload
+    this.cleanStale()
+
     const existing = this.entries.find(e => e.key === key)
     if (existing) {
       existing.timestamp = Date.now()
@@ -46,8 +69,7 @@ export class WebPreloader {
     }
 
     if (this.entries.length >= this.maxPreload) {
-      this.entries.sort((a, b) => a.timestamp - b.timestamp)
-      this.entries.shift()
+      this.evictLRU()
     }
 
     const controller = new webview.WebviewController()

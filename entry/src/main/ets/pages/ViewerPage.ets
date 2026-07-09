@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb'
 import { WebPreloader } from '../util/WebPreloader'
+import { Logger } from '../common/Logger'
 
 interface ViewerParam {
   entryHtml: string
@@ -25,7 +26,7 @@ export struct ViewerPage {
       const paramObj = this.navPathStack.getParamByName('ViewerPage') as ViewerParam[]
       if (paramObj && paramObj.length > 0) {
         this.entryHtml = paramObj[0].entryHtml || ''
-        this.appName = paramObj[0].appName || 'WebBoard'
+        this.appName = paramObj[0].appName || 'WebLeaf'
       }
     }
 
@@ -34,11 +35,28 @@ export struct ViewerPage {
     }
   }
 
+  isUrlSource(): boolean {
+    return this.entryHtml.startsWith('http://') || this.entryHtml.startsWith('https://')
+  }
+
+  getWebSrc(): string | Resource {
+    if (this.entryHtml.startsWith('rawfile://')) {
+      return $rawfile(this.entryHtml.substring(10))
+    }
+    if (this.isUrlSource()) {
+      return this.entryHtml
+    }
+    if (this.entryHtml.startsWith('file://')) {
+      return this.entryHtml
+    }
+    return 'file://' + this.entryHtml
+  }
+
   aboutToDisappear(): void {
     try {
       this.controller.clearHistory()
     } catch (e) {
-      console.error('ViewerPage clearHistory failed')
+      Logger.error('ViewerPage', 'clearHistory failed')
     }
   }
 
@@ -49,20 +67,18 @@ export struct ViewerPage {
     try {
       this.controller.refresh()
     } catch (e) {
-      console.error('ViewerPage refresh failed')
+      Logger.error('ViewerPage', 'refresh failed')
     }
   }
 
   @Builder
   WebContent() {
     Web({
-      src: this.entryHtml.startsWith('rawfile://')
-        ? $rawfile(this.entryHtml.substring(10))
-        : ('file://' + this.entryHtml),
+      src: this.getWebSrc(),
       controller: this.controller
     })
       .javaScriptAccess(true)
-      .fileAccess(!this.entryHtml.startsWith('rawfile://'))
+      .fileAccess(!this.entryHtml.startsWith('rawfile://') && !this.isUrlSource())
       .mixedMode(MixedMode.All)
       .domStorageAccess(true)
       .cacheMode(CacheMode.Default)
@@ -103,12 +119,12 @@ export struct ViewerPage {
 
         if (this.hasError) {
           Column() {
-            Text('加载失败')
+            Text($r('app.string.viewer_loading_failed'))
               .fontSize(18)
               .fontWeight(FontWeight.Medium)
               .fontColor($r('app.color.app_text_primary'))
 
-            Text(this.errorMessage)
+            Text($r('app.string.viewer_error_message'))
               .fontSize(14)
               .fontColor($r('app.color.app_text_secondary'))
               .margin({ top: 8 })
@@ -116,7 +132,7 @@ export struct ViewerPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .textAlign(TextAlign.Center)
 
-            Button('重试')
+            Button($r('app.string.btn_retry'))
               .fontSize(15)
               .fontWeight(FontWeight.Medium)
               .fontColor(Color.White)
@@ -136,7 +152,7 @@ export struct ViewerPage {
           this.WebContent()
         } else {
           Column() {
-            Text('无法加载页面')
+            Text($r('app.string.viewer_no_content'))
               .fontSize(16)
               .fontColor($r('app.color.app_text_muted'))
           }

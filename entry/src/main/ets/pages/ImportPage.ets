@@ -1,11 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { WebAppItem } from '../model/WebAppItem'
-import { StorageManager } from '../util/StorageManager'
+import { DatabaseManager } from '../database/DatabaseManager'
 import { FileManager } from '../util/FileManager'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType, SourceType } from '../common/Constants'
-import { http } from '@kit.NetworkKit'
-import { fileIo } from '@kit.CoreFileKit'
+import { Toast } from '../ui/ToastUtil'
 
 @Component
 export struct ImportPage {
@@ -80,52 +79,31 @@ export struct ImportPage {
   }
 
   async downloadFromUrl(): Promise<void> {
-    if (!this.context || this.urlInput.length === 0) {
+    if (this.urlInput.length === 0) {
       return
     }
 
     this.isDownloading = true
-    this.statusMessage = '正在下载...'
+    this.statusMessage = '正在处理...'
 
     try {
-      const httpRequest = http.createHttp()
-      const response = await httpRequest.request(this.urlInput, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.STRING
-      })
-
-      if (response.responseCode === 200) {
-        const htmlContent = response.result as string
-
-        const urlParts = this.urlInput.split('/')
-        let fileName = urlParts[urlParts.length - 1] || 'downloaded.html'
-        if (!fileName.endsWith('.html') && !fileName.endsWith('.htm')) {
-          fileName = fileName + '.html'
-        }
-
-        const workDir = WorkDirectory.getPath(this.context)
-        WorkDirectory.ensureDirectory(this.context)
-        const filePath = workDir + '/' + fileName
-
-        const file = fileIo.openSync(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY)
-        fileIo.writeSync(file.fd, htmlContent)
-        fileIo.closeSync(file)
-
-        this.selectedFileUri = filePath
-        this.selectedFileName = fileName
-        this.importMode = 'url'
-        if (this.appName.length === 0) {
-          this.appName = fileName.replace(/\.html?$/i, '')
-        }
-        this.statusMessage = '下载完成: ' + fileName
-      } else {
-        this.statusMessage = '下载失败: HTTP ' + response.responseCode
+      const url = this.urlInput.trim()
+      const urlParts = url.split('/')
+      let fileName = urlParts[urlParts.length - 1] || 'webpage'
+      if (!fileName.includes('.')) {
+        fileName = fileName + '.html'
       }
 
-      httpRequest.destroy()
+      this.selectedFileUri = url
+      this.selectedFileName = fileName
+      this.importMode = 'url'
+      if (this.appName.length === 0) {
+        this.appName = fileName.replace(/\.html?$/i, '')
+      }
+      this.statusMessage = '已选择: ' + url
     } catch (e) {
       const err = e as Error
-      this.statusMessage = '下载失败: ' + err.message
+      this.statusMessage = '处理失败: ' + err.message
     } finally {
       this.isDownloading = false
     }
@@ -147,13 +125,30 @@ export struct ImportPage {
     const fileName = this.selectedFileName
     try {
       let destPath: string
-
+      let sourceType: string
+      let persistUri: string = ''
+      let persistMode: string = ''
       if (this.importMode === 'url') {
         destPath = this.selectedFileUri
+        sourceType = SourceType.URL
         this.statusMessage = '正在保存...'
       } else {
-        this.statusMessage = '正在复制: ' + fileName + '...'
-        destPath = fileMgr.copyFileToWorkspace(this.selectedFileUri, fileName, workDir)
+        // Try persist permission first for file imports
+        this.statusMessage = '正在处理: ' + fileName + '...'
+        const persisted = await fileMgr.tryPersistPermission(this.selectedFileUri)
+        if (persisted) {
+          destPath = this.selectedFileUri
+          if (destPath.startsWith('file://')) {
+            destPath = destPath.substring(7)
+          }
+          sourceType = SourceType.FILE
+          persistUri = this.selectedFileUri
+          persistMode = 'read'
+        } else {
+          this.statusMessage = '正在复制: ' + fileName + '...'
+          destPath = fileMgr.copyFileToWorkspace(this.selectedFileUri, fileName, workDir)
+          sourceType = SourceType.FILE
+        }
       }
 
       const item = new WebAppItem()
@@ -163,8 +158,10 @@ export struct ImportPage {
       item.logoType = this.logoType
       item.logoUri = ''
       item.entryHtml = destPath
-      item.sourceType = SourceType.FILE
+      item.sourceType = sourceType
       item.createTime = Date.now()
+      item.persistUri = persistUri
+      item.persistMode = persistMode
 
       if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
         try {
@@ -176,11 +173,11 @@ export struct ImportPage {
         }
       }
 
-      const storageMgr = StorageManager.getInstance(this.context)
-      await storageMgr.add(item)
+      const dbMgr = DatabaseManager.getInstance(this.context)
+      await dbMgr.addApp(item)
 
       AppStorage.setOrCreate('dataChanged', true)
-      this.getUIContext().getPromptAction().showToast({ message: '导入成功' })
+      Toast.show('导入成功')
       this.navPathStack?.pop()
     } catch (e) {
       const err = e as Error
@@ -210,11 +207,11 @@ export struct ImportPage {
                     .fontSize(24)
                     .fontColor([this.importMode === 'file' ? $r('app.color.app_primary') : $r('app.color.app_text_muted')])
                   Column({ space: 4 }) {
-                    Text('从文件导入')
+                    Text($r('app.string.import_file_title'))
                       .fontSize(15)
                       .fontWeight(FontWeight.Medium)
                       .fontColor($r('app.color.app_text_primary'))
-                    Text('选择本地 HTML 文件')
+                    Text($r('app.string.import_file_desc'))
                       .fontSize(12)
                       .fontColor($r('app.color.app_text_muted'))
                   }
@@ -255,7 +252,7 @@ export struct ImportPage {
                 Divider()
                   .layoutWeight(1)
                   .color($r('app.color.app_divider'))
-                Text('或')
+                Text($r('app.string.import_or'))
                   .fontSize(12)
                   .fontColor($r('app.color.app_text_muted'))
                 Divider()
@@ -270,11 +267,11 @@ export struct ImportPage {
                     .fontSize(24)
                     .fontColor([this.importMode === 'url' ? $r('app.color.app_primary') : $r('app.color.app_text_muted')])
                   Column({ space: 4 }) {
-                    Text('从网址导入')
+                    Text($r('app.string.import_url_title'))
                       .fontSize(15)
                       .fontWeight(FontWeight.Medium)
                       .fontColor($r('app.color.app_text_primary'))
-                    Text('输入 HTML 网址下载')
+                    Text($r('app.string.import_url_desc'))
                       .fontSize(12)
                       .fontColor($r('app.color.app_text_muted'))
                   }
@@ -283,7 +280,7 @@ export struct ImportPage {
                 .width('100%')
 
                 Row({ space: 8 }) {
-                  TextInput({ placeholder: 'https://example.com/page.html', text: this.urlInput })
+                  TextInput({ placeholder: $r('app.string.import_url_hint'), text: this.urlInput })
                     .fontSize(14)
                     .height(44)
                     .layoutWeight(1)
@@ -364,12 +361,12 @@ export struct ImportPage {
             if (this.importMode !== 'none') {
               Column({ space: 16 }) {
                 Column({ space: 6 }) {
-                  Text('应用名称')
-                    .fontSize(13)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.app_text_muted'))
-                    .width('100%')
-                  TextInput({ placeholder: '输入应用名称', text: this.appName })
+                Text($r('app.string.label_app_name'))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_muted'))
+                  .width('100%')
+                TextInput({ placeholder: $r('app.string.label_name_placeholder'), text: this.appName })
                     .fontSize(15)
                     .height(44)
                     .width('100%')
@@ -382,12 +379,12 @@ export struct ImportPage {
                 }
 
                 Column({ space: 6 }) {
-                  Text('应用描述（可选）')
-                    .fontSize(13)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.app_text_muted'))
-                    .width('100%')
-                  TextInput({ placeholder: '输入应用描述', text: this.appDescription })
+                Text($r('app.string.label_app_desc_optional'))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_muted'))
+                  .width('100%')
+                TextInput({ placeholder: $r('app.string.label_desc_placeholder'), text: this.appDescription })
                     .fontSize(15)
                     .height(72)
                     .width('100%')
@@ -401,11 +398,11 @@ export struct ImportPage {
                 }
 
                 Column({ space: 12 }) {
-                  Text('应用图标')
-                    .fontSize(13)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.app_text_muted'))
-                    .width('100%')
+                Text($r('app.string.label_app_logo'))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.app_text_muted'))
+                  .width('100%')
 
                   Row({ space: 16 }) {
                     if (this.logoType === LogoType.CUSTOM && this.logoUri.length > 0) {
@@ -432,7 +429,7 @@ export struct ImportPage {
                     }
 
                     Column({ space: 6 }) {
-                      Text(this.logoType === LogoType.CUSTOM ? '更换图标' : '自定义图标')
+                      Text(this.logoType === LogoType.CUSTOM ? $r('app.string.btn_change_logo') : $r('app.string.btn_custom_logo'))
                         .fontSize(14)
                         .fontColor($r('app.color.app_primary'))
                         .onClick(() => {
@@ -440,9 +437,9 @@ export struct ImportPage {
                         })
 
                       if (this.logoType === LogoType.CUSTOM) {
-                        Text('使用首字母')
-                          .fontSize(13)
-                          .fontColor($r('app.color.app_text_muted'))
+                      Text($r('app.string.btn_use_initial'))
+                        .fontSize(13)
+                        .fontColor($r('app.color.app_text_muted'))
                           .onClick(() => {
                             this.resetLogo()
                           })
@@ -464,7 +461,7 @@ export struct ImportPage {
                 SymbolGlyph($r('sys.symbol.square_and_arrow_down'))
                   .fontSize(18)
                   .fontColor([Color.White])
-                Text('保存并导入')
+                Text($r('app.string.btn_save_import'))
                   .fontSize(16)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(Color.White)
@@ -489,7 +486,8 @@ export struct ImportPage {
       .width('100%')
       .height('100%')
       .backgroundColor($r('app.color.app_background'))
+      .transition(TransitionEffect.opacity(0.5).animation({ duration: 300, curve: Curve.EaseInOut }))
     }
-    .title('导入 HTML 应用')
+    .title('导入')
   }
 }

@@ -1,6 +1,7 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
-import { StorageManager } from '../util/StorageManager'
+import { DatabaseManager } from '../database/DatabaseManager'
 import { ColorMode } from '../common/Constants'
+import { Logger } from '../common/Logger'
 
 @Component
 export struct SettingsPage {
@@ -8,7 +9,7 @@ export struct SettingsPage {
   @State preloadEnabled: boolean = true
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack | undefined = undefined
-  private storageMgr: StorageManager | null = null
+  private dbMgr: DatabaseManager | null = null
 
   aboutToAppear(): void {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -16,24 +17,24 @@ export struct SettingsPage {
     this.navPathStack = info?.pathStack
 
     if (this.context) {
-      this.storageMgr = StorageManager.getInstance(this.context)
-      this.storageMgr.getColorMode().then((mode: string) => {
+      this.dbMgr = DatabaseManager.getInstance(this.context)
+      this.dbMgr.init().then(async () => {
+        const mode = await this.dbMgr!.getSetting('color_mode', ColorMode.SYSTEM)
         this.selectedMode = mode
-      })
-      this.storageMgr.isPreloadEnabled().then((enabled: boolean) => {
-        this.preloadEnabled = enabled
+        const enabled = await this.dbMgr!.getSetting('preload_enabled', 'true')
+        this.preloadEnabled = enabled === 'true'
       })
     }
   }
 
   async applyColorMode(mode: string): Promise<void> {
-    if (!this.context || !this.storageMgr) {
+    if (!this.context || !this.dbMgr) {
       return
     }
 
     this.selectedMode = mode
 
-    await this.storageMgr.setColorMode(mode)
+    await this.dbMgr.setSetting('color_mode', mode)
 
     let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
     if (mode === ColorMode.LIGHT) {
@@ -45,24 +46,24 @@ export struct SettingsPage {
     try {
       this.context.getApplicationContext().setColorMode(colorMode)
     } catch (e) {
-      console.error('Failed to set color mode')
+      Logger.error('SettingsPage', 'Failed to set color mode')
     }
   }
 
   async setPreloadEnabled(enabled: boolean): Promise<void> {
-    if (!this.context || !this.storageMgr) {
+    if (!this.context || !this.dbMgr) {
       return
     }
 
     this.preloadEnabled = enabled
 
-    await this.storageMgr.setPreloadEnabled(enabled)
+    await this.dbMgr.setSetting('preload_enabled', enabled ? 'true' : 'false')
   }
 
   build() {
     NavDestination() {
       Column() {
-        Text('外观')
+        Text($r('app.string.label_appearance'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.app_text_muted'))
@@ -82,11 +83,11 @@ export struct SettingsPage {
               .height(20)
 
             Column() {
-              Text('跟随系统')
+              Text($r('app.string.color_mode_system'))
                 .fontSize(15)
                 .fontColor($r('app.color.app_text_primary'))
 
-              Text('自动跟随系统深浅模式设置')
+              Text($r('app.string.color_mode_system_desc'))
                 .fontSize(12)
                 .fontColor($r('app.color.app_text_muted'))
                 .margin({ top: 2 })
@@ -115,11 +116,11 @@ export struct SettingsPage {
               .height(20)
 
             Column() {
-              Text('浅色模式')
+              Text($r('app.string.color_mode_light'))
                 .fontSize(15)
                 .fontColor($r('app.color.app_text_primary'))
 
-              Text('始终使用浅色模式')
+              Text($r('app.string.color_mode_light_desc'))
                 .fontSize(12)
                 .fontColor($r('app.color.app_text_muted'))
                 .margin({ top: 2 })
@@ -148,11 +149,11 @@ export struct SettingsPage {
               .height(20)
 
             Column() {
-              Text('深色模式')
+              Text($r('app.string.color_mode_dark'))
                 .fontSize(15)
                 .fontColor($r('app.color.app_text_primary'))
 
-              Text('始终使用深色模式')
+              Text($r('app.string.color_mode_dark_desc'))
                 .fontSize(12)
                 .fontColor($r('app.color.app_text_muted'))
                 .margin({ top: 2 })
@@ -172,7 +173,7 @@ export struct SettingsPage {
         .borderRadius(12)
         .margin({ top: 8 })
 
-        Text('性能')
+        Text($r('app.string.label_performance'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.app_text_muted'))
@@ -183,7 +184,7 @@ export struct SettingsPage {
 
         Column() {
           Row() {
-            Text('预加载')
+            Text($r('app.string.preload_label'))
               .fontSize(15)
               .fontColor($r('app.color.app_text_primary'))
               .layoutWeight(1)
@@ -201,12 +202,12 @@ export struct SettingsPage {
         .borderRadius(12)
         .margin({ top: 8 })
 
-        Text('开启后会预加载最近使用的应用，提升打开速度')
+        Text($r('app.string.preload_desc'))
           .fontSize(12)
           .fontColor($r('app.color.app_text_muted'))
           .margin({ left: 4, top: 4 })
 
-        Text('关于')
+        Text($r('app.string.label_about'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.app_text_muted'))
@@ -217,7 +218,7 @@ export struct SettingsPage {
 
         Column() {
           Row() {
-            Text('版本')
+            Text($r('app.string.label_version'))
               .fontSize(15)
               .fontColor($r('app.color.app_text_primary'))
               .layoutWeight(1)
@@ -234,12 +235,12 @@ export struct SettingsPage {
             .margin({ left: 16, right: 16 })
 
           Column() {
-            Text('WebBoard')
+            Text($r('app.string.app_full_name'))
               .fontSize(15)
               .fontColor($r('app.color.app_text_primary'))
               .fontWeight(FontWeight.Medium)
 
-            Text('管理和渲染 HTML 内容的 HarmonyOS 应用')
+            Text($r('app.string.app_description'))
               .fontSize(13)
               .fontColor($r('app.color.app_text_secondary'))
               .margin({ top: 4 })
@@ -258,6 +259,6 @@ export struct SettingsPage {
       .padding({ left: 16, right: 16 })
       .backgroundColor($r('app.color.app_background'))
     }
-    .title('设置')
+    .title($r('app.string.nav_title_settings'))
   }
 }

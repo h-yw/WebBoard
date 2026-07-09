@@ -1,7 +1,10 @@
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { picker } from '@kit.CoreFileKit';
+import { fileShare } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { WorkDirectory } from './WorkDirectory';
+import { Logger } from '../common/Logger';
 
 export class FileManager {
   private context: common.UIAbilityContext
@@ -38,7 +41,7 @@ export class FileManager {
       try {
         fs.mkdirSync(workDir)
       } catch (mkdirErr) {
-        console.error('FileManager copyFileToWorkspace mkdirSync failed: ' + workDir)
+        Logger.error('FileManager', 'copyFileToWorkspace mkdirSync failed: ' + workDir)
         throw new Error('Failed to create work directory: ' + workDir)
       }
     }
@@ -57,20 +60,20 @@ export class FileManager {
         }
       } while (readLen > 0)
     } catch (e) {
-      console.error('FileManager copyFileToWorkspace copy failed: ' + sourceUri)
+      Logger.error('FileManager', 'copyFileToWorkspace copy failed: ' + sourceUri)
     } finally {
       if (src !== undefined) {
         try {
           fs.closeSync(src)
         } catch (e) {
-          console.error('FileManager closeSync src failed')
+          Logger.error('FileManager', 'closeSync src failed')
         }
       }
       if (dst !== undefined) {
         try {
           fs.closeSync(dst)
         } catch (e) {
-          console.error('FileManager closeSync dst failed')
+          Logger.error('FileManager', 'closeSync dst failed')
         }
       }
     }
@@ -91,5 +94,53 @@ export class FileManager {
 
   generateId(): string {
     return WorkDirectory.generateId()
+  }
+
+  static isPersistPermissionSupported(): boolean {
+    try {
+      return canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')
+    } catch (e) {
+      return false
+    }
+  }
+
+  async tryPersistPermission(uri: string): Promise<boolean> {
+    if (!FileManager.isPersistPermissionSupported()) {
+      return false
+    }
+    try {
+      let policyInfo: fileShare.PolicyInfo = {
+        uri: uri,
+        operationMode: fileShare.OperationMode.READ_MODE
+      }
+      await fileShare.persistPermission([policyInfo])
+      return true
+    } catch (e) {
+      let err = e as BusinessError
+      Logger.error('FileManager', 'tryPersistPermission failed for uri: ' + uri + ', error: ' + JSON.stringify(err))
+      return false
+    }
+  }
+
+  static async activatePermissions(uris: string[]): Promise<void> {
+    if (!FileManager.isPersistPermissionSupported()) {
+      return
+    }
+    for (let i = 0; i < uris.length; i++) {
+      const uri = uris[i]
+      if (uri.length === 0) {
+        continue
+      }
+      try {
+        let policyInfo: fileShare.PolicyInfo = {
+          uri: uri,
+          operationMode: fileShare.OperationMode.READ_MODE
+        }
+        await fileShare.activatePermission([policyInfo])
+      } catch (e) {
+        let err = e as BusinessError
+        Logger.error('FileManager', 'activatePermissions failed for uri: ' + uri + ', error: ' + JSON.stringify(err))
+      }
+    }
   }
 }

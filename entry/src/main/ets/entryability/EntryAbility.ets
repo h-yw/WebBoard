@@ -16,8 +16,10 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { StorageManager } from '../util/StorageManager';
+import { DatabaseManager } from '../database/DatabaseManager';
+import { FileManager } from '../util/FileManager';
 import { ColorMode } from '../common/Constants';
+import { Logger } from '../common/Logger';
 
 const DOMAIN = 0x0000;
 
@@ -25,8 +27,10 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     try {
-      const storageMgr = StorageManager.getInstance(this.context)
-      storageMgr.getColorMode().then((mode: string) => {
+      const dbMgr = DatabaseManager.getInstance(this.context)
+      dbMgr.init().then(async () => {
+        // Restore color mode from settings
+        const mode = await dbMgr.getSetting('color_mode', ColorMode.SYSTEM)
         let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
         if (mode === ColorMode.LIGHT) {
           colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
@@ -34,11 +38,27 @@ export default class EntryAbility extends UIAbility {
           colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_DARK
         }
         this.context.getApplicationContext().setColorMode(colorMode)
+
+        // Activate persisted permissions for file access
+        const apps = await dbMgr.getAllApps()
+        const persistUris: string[] = []
+        for (let i = 0; i < apps.length; i++) {
+          if (apps[i].persistUri.length > 0) {
+            persistUris.push(apps[i].persistUri)
+          }
+        }
+        if (persistUris.length > 0) {
+          try {
+            FileManager.activatePermissions(persistUris)
+          } catch (e) {
+            Logger.error('EntryAbility', 'activatePermissions failed: ' + JSON.stringify(e))
+          }
+        }
       }).catch((err: Error) => {
-        hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+        hilog.error(DOMAIN, 'testTag', 'Failed to init DB. Cause: %{public}s', JSON.stringify(err));
       })
     } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, 'testTag', 'Failed to init DB. Cause: %{public}s', JSON.stringify(err));
     }
   }
 

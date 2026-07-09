@@ -2,19 +2,19 @@
   "string": [
     {
       "name": "app_name",
-      "value": "浮叶"
+      "value": "WebLeaf"
     },
     {
       "name": "module_desc",
-      "value": "模块描述"
+      "value": "Module description"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "应用描述"
+      "value": "App description"
     },
     {
       "name": "EntryAbility_label",
-      "value": "浮叶"
+      "value": "WebLeaf"
     },
     {
       "name": "app_full_name",
@@ -22,151 +22,151 @@
     },
     {
       "name": "app_description",
-      "value": "管理和渲染 HTML 内容的 HarmonyOS 应用"
+      "value": "A HarmonyOS app for managing and rendering HTML content"
     },
     {
       "name": "nav_title_apps",
-      "value": "浮叶"
+      "value": "WebLeaf"
     },
     {
       "name": "nav_title_import",
-      "value": "导入"
+      "value": "Import"
     },
     {
       "name": "nav_title_settings",
-      "value": "设置"
+      "value": "Settings"
     },
     {
       "name": "nav_title_edit",
-      "value": "编辑应用"
+      "value": "Edit App"
     },
     {
       "name": "search_placeholder",
-      "value": "搜索应用..."
+      "value": "Search apps..."
     },
     {
       "name": "empty_title",
-      "value": "还没有应用哦"
+      "value": "No apps yet"
     },
     {
       "name": "empty_desc",
-      "value": "导入 HTML 文件，开始你的第一个应用"
+      "value": "Import an HTML file to start your first app"
     },
     {
       "name": "btn_import_app",
-      "value": "导入应用"
+      "value": "Import App"
     },
     {
       "name": "btn_try_preset",
-      "value": "试试预设应用"
+      "value": "Try Preset App"
     },
     {
       "name": "btn_save_import",
-      "value": "保存并导入"
+      "value": "Save & Import"
     },
     {
       "name": "btn_save_changes",
-      "value": "保存修改"
+      "value": "Save Changes"
     },
     {
       "name": "btn_saving",
-      "value": "保存中..."
+      "value": "Saving..."
     },
     {
       "name": "btn_retry",
-      "value": "重试"
+      "value": "Retry"
     },
     {
       "name": "btn_confirm_delete",
-      "value": "删除"
+      "value": "Delete"
     },
     {
       "name": "btn_cancel",
-      "value": "取消"
+      "value": "Cancel"
     },
     {
       "name": "btn_edit",
-      "value": "编辑"
+      "value": "Edit"
     },
     {
       "name": "btn_delete",
-      "value": "删除"
+      "value": "Delete"
     },
     {
       "name": "no_match_title",
-      "value": "未找到匹配的应用"
+      "value": "No matching apps found"
     },
     {
       "name": "no_match_desc",
-      "value": "请尝试其他关键词"
+      "value": "Try different keywords"
     },
     {
       "name": "delete_confirm_title",
-      "value": "删除确认"
+      "value": "Confirm Delete"
     },
     {
       "name": "delete_confirm_message",
-      "value": "确定要删除「%s」吗？"
+      "value": "Are you sure you want to delete「%s」?"
     },
     {
       "name": "toast_deleted",
-      "value": "已删除"
+      "value": "Deleted"
     },
     {
       "name": "toast_import_success",
-      "value": "导入成功"
+      "value": "Import successful"
     },
     {
       "name": "toast_save_success",
-      "value": "保存成功"
+      "value": "Save successful"
     },
     {
       "name": "source_preset",
-      "value": "预设"
+      "value": "Preset"
     },
     {
       "name": "source_file",
-      "value": "文件"
+      "value": "File"
     },
     {
       "name": "source_url",
-      "value": "网址"
+      "value": "URL"
     },
     {
       "name": "action_title",
-      "value": "操作"
+      "value": "Actions"
     },
     {
       "name": "action_prompt",
-      "value": "请选择要执行的操作"
+      "value": "Choose an action"
     },
     {
       "name": "unsaved_title",
-      "value": "未保存的修改"
+      "value": "Unsaved Changes"
     },
     {
       "name": "unsaved_message",
-      "value": "您有未保存的修改，确定要离开吗？"
+      "value": "You have unsaved changes. Are you sure you want to leave?"
     },
     {
       "name": "btn_leave",
-      "value": "离开"
+      "value": "Leave"
     },
     {
       "name": "import_file_title",
-      "value": "从文件导入"
+      "value": "Import from File"
     },
     {
       "name": "import_file_desc",
-      "value": "选择本地 HTML 文件"
+      "value": "Select a local HTML file"
     },
     {
       "name": "import_url_title",
-      "value": "从网址导入"
+      "value": "Import from URL"
     },
     {
       "name": "import_url_desc",
-      "value": "输入 HTML 网址"
+      "value": "Enter HTML URL"
     },
     {
       "name": "import_url_hint",
@@ -174,139 +174,139 @@
     },
     {
       "name": "import_or",
-      "value": "或"
+      "value": "or"
     },
     {
       "name": "label_app_name",
-      "value": "应用名称"
+      "value": "App Name"
     },
     {
       "name": "label_app_desc",
-      "value": "应用描述"
+      "value": "Description"
     },
     {
       "name": "label_app_desc_optional",
-      "value": "应用描述（可选）"
+      "value": "Description (optional)"
     },
     {
       "name": "label_app_logo",
-      "value": "应用图标"
+      "value": "App Icon"
     },
     {
       "name": "label_name_placeholder",
-      "value": "输入应用名称"
+      "value": "Enter app name"
     },
     {
       "name": "label_desc_placeholder",
-      "value": "输入应用描述"
+      "value": "Enter description"
     },
     {
       "name": "label_desc_placeholder_optional",
-      "value": "输入应用描述（可选）"
+      "value": "Enter description (optional)"
     },
     {
       "name": "btn_custom_logo",
-      "value": "自定义图标"
+      "value": "Custom Icon"
     },
     {
       "name": "btn_change_logo",
-      "value": "更换图标"
+      "value": "Change Icon"
     },
     {
       "name": "btn_use_initial",
-      "value": "使用首字母"
+      "value": "Use Initial"
     },
     {
       "name": "btn_select_image",
-      "value": "选择图片"
+      "value": "Select Image"
     },
     {
       "name": "status_file_selected",
-      "value": "已选择: %s"
+      "value": "Selected: %s"
     },
     {
       "name": "status_downloading",
-      "value": "正在处理..."
+      "value": "Processing..."
     },
     {
       "name": "status_saving",
-      "value": "正在保存..."
+      "value": "Saving..."
     },
     {
       "name": "status_processing",
-      "value": "正在处理: %s"
+      "value": "Processing: %s"
     },
     {
       "name": "status_copying",
-      "value": "正在复制: %s..."
+      "value": "Copying: %s..."
     },
     {
       "name": "status_import_failed",
-      "value": "导入失败: %s"
+      "value": "Import failed: %s"
     },
     {
       "name": "status_save_failed",
-      "value": "保存失败"
+      "value": "Save failed"
     },
     {
       "name": "label_version",
-      "value": "版本"
+      "value": "Version"
     },
     {
       "name": "label_appearance",
-      "value": "外观"
+      "value": "Appearance"
     },
     {
       "name": "label_performance",
-      "value": "性能"
+      "value": "Performance"
     },
     {
       "name": "label_about",
-      "value": "关于"
+      "value": "About"
     },
     {
       "name": "color_mode_system",
-      "value": "跟随系统"
+      "value": "Follow System"
     },
     {
       "name": "color_mode_system_desc",
-      "value": "自动跟随系统深浅模式设置"
+      "value": "Auto follow system light/dark mode"
     },
     {
       "name": "color_mode_light",
-      "value": "浅色模式"
+      "value": "Light Mode"
     },
     {
       "name": "color_mode_light_desc",
-      "value": "始终使用浅色模式"
+      "value": "Always use light mode"
     },
     {
       "name": "color_mode_dark",
-      "value": "深色模式"
+      "value": "Dark Mode"
     },
     {
       "name": "color_mode_dark_desc",
-      "value": "始终使用深色模式"
+      "value": "Always use dark mode"
     },
     {
       "name": "preload_label",
-      "value": "预加载"
+      "value": "Preload"
     },
     {
       "name": "preload_desc",
-      "value": "开启后会预加载最近使用的应用，提升打开速度"
+      "value": "Enable to preload recently used apps for faster opening"
     },
     {
       "name": "viewer_loading_failed",
-      "value": "加载失败"
+      "value": "Loading Failed"
     },
     {
       "name": "viewer_error_message",
-      "value": "页面加载失败，请检查网络连接后重试"
+      "value": "Page failed to load. Please check your network connection and try again"
     },
     {
       "name": "viewer_no_content",
-      "value": "无法加载页面"
+      "value": "Unable to load page"
     }
   ]
 }

@@ -1,9 +1,11 @@
 import { common } from '@kit.AbilityKit'
 import { WebAppItem } from '../model/WebAppItem'
-import { StorageManager } from '../util/StorageManager'
+import { DatabaseManager } from '../database/DatabaseManager'
 import { FileManager } from '../util/FileManager'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType } from '../common/Constants'
+import { Dialog } from '../ui/DialogUtil'
+import { Toast } from '../ui/ToastUtil'
 
 interface EditParam {
   appId: string
@@ -51,18 +53,13 @@ export struct EditPage {
 
   onBackPress(): boolean {
     if (this.hasUnsavedChanges) {
-      this.getUIContext().showAlertDialog({
-        title: '未保存的修改',
-        message: '您有未保存的修改，确定要离开吗？',
-        primaryButton: {
-          value: '离开',
-          action: () => {
-            this.navPathStack?.pop()
-          }
-        },
-        secondaryButton: {
-          value: '取消',
-          action: () => {}
+      Dialog.confirm({
+        title: $r('app.string.unsaved_title'),
+        message: $r('app.string.unsaved_message'),
+        confirmText: $r('app.string.btn_leave'),
+        cancelText: $r('app.string.btn_cancel'),
+        onConfirm: () => {
+          this.navPathStack?.pop()
         }
       })
       return true
@@ -137,17 +134,12 @@ export struct EditPage {
         }
       }
 
-      const storageMgr = StorageManager.getInstance(this.context)
-      const items = await storageMgr.getAll()
-      const index = items.findIndex(i => i.id === this.appId)
-      if (index >= 0) {
-        items[index] = item
-        await storageMgr.saveAll(items)
-      }
+      const dbMgr = DatabaseManager.getInstance(this.context)
+      await dbMgr.updateApp(item)
 
       AppStorage.setOrCreate('dataChanged', true)
       this.hasUnsavedChanges = false
-      this.getUIContext().getPromptAction().showToast({ message: '保存成功' })
+      Toast.show('保存成功')
       setTimeout(() => {
         this.navPathStack?.pop()
       }, 500)
@@ -166,18 +158,18 @@ export struct EditPage {
             // 应用名称卡片
             Column({ space: 8 }) {
               Row() {
-                Text('应用名称')
-                  .fontSize(13)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.app_text_muted'))
-                  .layoutWeight(1)
-                Text(this.nameCharCount.toString() + '/50')
+              Text($r('app.string.label_app_name'))
+                .fontSize(13)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.app_text_muted'))
+                .layoutWeight(1)
+              Text(this.nameCharCount.toString() + '/50')
                   .fontSize(12)
                   .fontColor($r('app.color.app_text_disabled'))
               }
               .width('100%')
 
-              TextInput({ placeholder: '输入应用名称', text: this.appName })
+              TextInput({ placeholder: $r('app.string.label_name_placeholder'), text: this.appName })
                 .fontSize(15)
                 .height(48)
                 .width('100%')
@@ -199,18 +191,18 @@ export struct EditPage {
             // 应用描述卡片
             Column({ space: 8 }) {
               Row() {
-                Text('应用描述')
-                  .fontSize(13)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.app_text_muted'))
-                  .layoutWeight(1)
-                Text(this.descCharCount.toString() + '/100')
+              Text($r('app.string.label_app_desc'))
+                .fontSize(13)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.app_text_muted'))
+                .layoutWeight(1)
+              Text(this.descCharCount.toString() + '/100')
                   .fontSize(12)
                   .fontColor($r('app.color.app_text_disabled'))
               }
               .width('100%')
 
-              TextInput({ placeholder: '输入应用描述（可选）', text: this.appDescription })
+              TextInput({ placeholder: $r('app.string.label_desc_placeholder_optional'), text: this.appDescription })
                 .fontSize(15)
                 .height(80)
                 .width('100%')
@@ -231,7 +223,7 @@ export struct EditPage {
 
             // 应用图标卡片
             Column({ space: 12 }) {
-              Text('应用图标')
+              Text($r('app.string.label_app_logo'))
                 .fontSize(13)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.app_text_muted'))
@@ -268,7 +260,7 @@ export struct EditPage {
                       SymbolGlyph($r('sys.symbol.picture'))
                         .fontSize(14)
                         .fontColor([Color.White])
-                      Text('选择图片')
+                      Text($r('app.string.btn_select_image'))
                         .fontSize(13)
                         .fontColor(Color.White)
                     }
@@ -286,7 +278,7 @@ export struct EditPage {
                         Text('Aa')
                           .fontSize(14)
                           .fontColor($r('app.color.app_text_secondary'))
-                        Text('使用首字母')
+                        Text($r('app.string.btn_use_initial'))
                           .fontSize(13)
                           .fontColor($r('app.color.app_text_secondary'))
                       }
@@ -347,7 +339,7 @@ export struct EditPage {
                     .width(20)
                     .height(20)
                     .color(Color.White)
-                  Text('保存中...')
+                  Text($r('app.string.btn_saving'))
                     .fontSize(16)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(Color.White)
@@ -357,7 +349,7 @@ export struct EditPage {
                   SymbolGlyph($r('sys.symbol.save'))
                     .fontSize(16)
                     .fontColor([Color.White])
-                  Text('保存修改')
+                  Text($r('app.string.btn_save_changes'))
                     .fontSize(16)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(Color.White)
@@ -384,6 +376,6 @@ export struct EditPage {
       .height('100%')
       .backgroundColor($r('app.color.app_background'))
     }
-    .title('编辑应用')
+    .title($r('app.string.nav_title_edit'))
   }
 }

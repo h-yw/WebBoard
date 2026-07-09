@@ -1,6 +1,6 @@
 import { WebAppItem } from '../model/WebAppItem'
 import { AppDataSource } from '../model/AppDataSource'
-import { StorageManager } from '../util/StorageManager'
+import { DatabaseManager } from '../database/DatabaseManager'
 import { WebPreloader } from '../util/WebPreloader'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { common } from '@kit.AbilityKit'
@@ -10,6 +10,8 @@ import { ViewerPage } from './ViewerPage'
 import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
 import { LogoType, SourceType, LayoutMode } from '../common/Constants'
+import { Toast } from '../ui/ToastUtil'
+import { Logger } from '../common/Logger'
 
 interface ViewerParam {
   entryHtml: string
@@ -34,7 +36,7 @@ struct Index {
   @State layoutMode: string = LayoutMode.GRID
   @StorageProp('dataChanged') @Watch('onDataChanged') dataChanged: boolean = false
   private dataSource: AppDataSource = new AppDataSource()
-  private storageMgr: StorageManager | null = null
+  private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
 
@@ -59,10 +61,12 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    this.storageMgr = StorageManager.getInstance(this.context)
+    this.dbMgr = DatabaseManager.getInstance(this.context)
+    await this.dbMgr.init()
     WorkDirectory.ensureDirectory(this.context)
     
-    this.layoutMode = await this.storageMgr.getLayoutMode()
+    const layoutStr = await this.dbMgr.getSetting('layout_mode', LayoutMode.GRID)
+    this.layoutMode = layoutStr
     await this.loadApps()
     if (this.appList.length === 0) {
       await this.addPresetApp()
@@ -93,26 +97,26 @@ struct Index {
     item.entryHtml = 'rawfile://code_artifact.html'
     item.sourceType = SourceType.PRESET
     item.createTime = Date.now()
-    if (this.storageMgr) {
-      await this.storageMgr.add(item)
+    if (this.dbMgr) {
+      await this.dbMgr.addApp(item)
       AppStorage.setOrCreate('dataChanged', true)
     }
   }
 
   async loadApps(): Promise<void> {
-    if (this.storageMgr) {
-      this.appList = await this.storageMgr.getAll()
+    if (this.dbMgr) {
+      this.appList = await this.dbMgr.getAllApps()
       this.dataSource.setApps(this.getFilteredApps())
     }
   }
 
   async scanWorkDirectory(): Promise<void> {
-    if (!this.context || !this.storageMgr) {
+    if (!this.context || !this.dbMgr) {
       this.isRefreshing = false
       return
     }
 
-    const existingItems = await this.storageMgr.getAll()
+    const existingItems = await this.dbMgr.getAllApps()
     const scannedItems = WorkDirectory.scanDirectory(this.context)
 
     const existingPaths = new Set<string>()
@@ -123,7 +127,7 @@ struct Index {
     let hasNew = false
     for (let i = 0; i < scannedItems.length; i++) {
       if (!existingPaths.has(scannedItems[i].entryHtml)) {
-        await this.storageMgr.add(scannedItems[i])
+        await this.dbMgr.addApp(scannedItems[i])
         hasNew = true
       }
     }
@@ -141,7 +145,14 @@ struct Index {
     for (let i = 0; i < recentKeys.length; i++) {
       const key = recentKeys[i]
       const item = this.appList.find(app => app.entryHtml === key)
-      if (item && !preloader.isPreloaded(key)) {
+      if (!item) {
+        continue
+      }
+      // Skip preloading for URL-type apps (loaded directly from network)
+      if (item.entryHtml.startsWith('http://') || item.entryHtml.startsWith('https://')) {
+        continue
+      }
+      if (!preloader.isPreloaded(key)) {
         let src = ''
         if (key.startsWith('rawfile://')) {
           src = key.substring(10)
@@ -164,26 +175,26 @@ struct Index {
     if (sourceType === SourceType.PRESET) {
       return $r('app.color.app_success')
     }
-    if (sourceType === SourceType.DIRECTORY) {
+    if (sourceType === SourceType.URL) {
       return $r('app.color.app_warning')
     }
     return $r('app.color.app_primary')
   }
 
-  getSourceLabel(sourceType: string): string {
+  getSourceLabel(sourceType: string): Resource {
     if (sourceType === SourceType.PRESET) {
-      return '预设'
+      return $r('app.string.source_preset')
     }
-    if (sourceType === SourceType.DIRECTORY) {
-      return '目录'
+    if (sourceType === SourceType.URL) {
+      return $r('app.string.source_url')
     }
-    return '文件'
+    return $r('app.string.source_file')
   }
 
   toggleLayout(): void {
     this.layoutMode = this.layoutMode === LayoutMode.GRID ? LayoutMode.LIST : LayoutMode.GRID
-    if (this.storageMgr) {
-      this.storageMgr.setLayoutMode(this.layoutMode)
+    if (this.dbMgr) {
+      this.dbMgr.setSetting('layout_mode', this.layoutMode)
     }
   }
 
@@ -205,23 +216,23 @@ struct Index {
 
   showActionSheet(item: WebAppItem): void {
     this.getUIContext().showAlertDialog({
-      title: '操作',
-      message: '请选择要执行的操作',
+      title: $r('app.string.action_title'),
+      message: $r('app.string.action_prompt'),
       buttons: [
         {
-          value: '编辑',
+          value: $r('app.string.btn_edit'),
           action: () => {
             this.navigateToEdit(item)
           }
         },
         {
-          value: '删除',
+          value: $r('app.string.btn_delete'),
           action: () => {
             this.confirmDelete(item)
           }
         },
         {
-          value: '取消',
+          value: $r('app.string.btn_cancel'),
           action: () => {}
         }
       ]
@@ -234,52 +245,38 @@ struct Index {
   }
 
   confirmDelete(item: WebAppItem): void {
+    const message = '确定要删除「' + item.name + '」吗？'
     this.getUIContext().showAlertDialog({
-      title: '删除确认',
-      message: '确定要删除「' + item.name + '」吗？',
+      title: $r('app.string.delete_confirm_title'),
+      message: message,
       primaryButton: {
-        value: '删除',
+        value: $r('app.string.btn_confirm_delete'),
         action: () => {
           this.deleteApp(item)
         }
       },
       secondaryButton: {
-        value: '取消',
+        value: $r('app.string.btn_cancel'),
         action: () => {}
       }
     })
   }
 
   async deleteApp(item: WebAppItem): Promise<void> {
-    if (!this.storageMgr) {
+    if (!this.dbMgr) {
       return
     }
-    await this.storageMgr.remove(item.id)
-    if (item.entryHtml.startsWith('rawfile://')) {
-    } else {
-      if (item.sourceType === SourceType.DIRECTORY) {
-        const dirPath = item.entryHtml.substring(0, item.entryHtml.lastIndexOf('/'))
-        try {
-          fs.accessSync(dirPath)
-          this.deleteDirectory(dirPath)
-        } catch (e) {
-          console.error('deleteApp directory not found: ' + dirPath)
-        }
-      } else {
-        try {
-          fs.accessSync(item.entryHtml)
-          fs.unlinkSync(item.entryHtml)
-        } catch (e) {
-          console.error('deleteApp file delete failed: ' + item.entryHtml)
-        }
+    await this.dbMgr.deleteApp(item.id)
+    if (item.sourceType === SourceType.FILE && !item.entryHtml.startsWith('rawfile://') && item.persistMode.length === 0) {
+      try {
+        fs.accessSync(item.entryHtml)
+        fs.unlinkSync(item.entryHtml)
+      } catch (e) {
+        Logger.error('Index', 'deleteApp file delete failed: ' + item.entryHtml)
       }
     }
     await this.loadApps()
-    try {
-      this.getUIContext().getPromptAction().showToast({ message: '已删除' })
-    } catch (e) {
-      console.error('showToast failed')
-    }
+    Toast.show('已删除')
   }
 
   private deleteDirectory(dirPath: string): void {
@@ -327,7 +324,7 @@ struct Index {
         fs.rmdirSync(dirsToDelete[i])
       }
     } catch (e) {
-      console.error('deleteDirectory failed: ' + dirPath)
+      Logger.error('Index', 'deleteDirectory failed: ' + dirPath)
     }
   }
 
@@ -337,7 +334,7 @@ struct Index {
       SymbolGlyph($r('sys.symbol.magnifyingglass'))
         .fontSize(16)
         .fontColor([$r('app.color.app_text_muted')])
-      TextInput({ placeholder: '搜索应用...', text: this.searchKeyword })
+      TextInput({ placeholder: $r('app.string.search_placeholder'), text: this.searchKeyword })
         .fontSize(14)
         .height(36)
         .backgroundColor(Color.Transparent)
@@ -415,14 +412,14 @@ struct Index {
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(14)
+    .padding(16)
     .borderRadius(12)
     .backgroundColor($r('app.color.app_card_bg'))
     .shadow({
       radius: 6,
       color: $r('app.color.app_shadow'),
       offsetX: 0,
-      offsetY: 1
+      offsetY: 2
     })
     .onClick(() => {
       this.openViewer(item)
@@ -433,6 +430,11 @@ struct Index {
           this.showActionSheet(item)
         })
     )
+    .stateStyles({
+      pressed: {
+        .scale({ x: 0.96, y: 0.96 })
+      }
+    })
   }
 
   @Builder
@@ -508,6 +510,11 @@ struct Index {
           this.showActionSheet(item)
         })
     )
+    .stateStyles({
+      pressed: {
+        .scale({ x: 0.96, y: 0.96 })
+      }
+    })
   }
 
   @Builder
@@ -540,7 +547,7 @@ struct Index {
           SymbolGlyph($r('sys.symbol.plus'))
             .fontSize(16)
             .fontColor([$r('app.color.app_primary')])
-          Text('导入')
+          Text($r('app.string.nav_title_import'))
             .fontSize(13)
             .fontColor($r('app.color.app_primary'))
         }
@@ -578,21 +585,21 @@ struct Index {
             if (this.searchKeyword.length > 0) {
               Text('🔍')
                 .fontSize(48)
-              Text('未找到匹配的应用')
+              Text($r('app.string.no_match_title'))
                 .fontSize(16)
                 .fontColor($r('app.color.app_text_muted'))
-              Text('请尝试其他关键词')
+              Text($r('app.string.no_match_desc'))
                 .fontSize(13)
                 .fontColor($r('app.color.app_text_disabled'))
             } else {
               Text('📦')
                 .fontSize(64)
               Column({ space: 4 }) {
-                Text('还没有应用哦')
+                Text($r('app.string.empty_title'))
                   .fontSize(18)
                   .fontWeight(FontWeight.Medium)
                   .fontColor($r('app.color.app_text_primary'))
-                Text('导入 HTML 文件，开始你的第一个应用')
+                Text($r('app.string.empty_desc'))
                   .fontSize(13)
                   .fontColor($r('app.color.app_text_muted'))
               }
@@ -602,7 +609,7 @@ struct Index {
                   SymbolGlyph($r('sys.symbol.plus'))
                     .fontSize(16)
                     .fontColor([Color.White])
-                  Text('导入应用')
+                  Text($r('app.string.btn_import_app'))
                     .fontSize(15)
                     .fontColor(Color.White)
                 }
@@ -619,7 +626,7 @@ struct Index {
                 Row({ space: 4 }) {
                   Text('📋')
                     .fontSize(14)
-                  Text('试试预设应用')
+                  Text($r('app.string.btn_try_preset'))
                     .fontSize(13)
                     .fontColor($r('app.color.app_text_secondary'))
                 }
@@ -648,6 +655,7 @@ struct Index {
                     }
                   }, (item: WebAppItem) => item.id)
                 }
+                .cachedCount(10)
                 .columnsTemplate('1fr 1fr')
                 .columnsGap(12)
                 .rowsGap(12)
@@ -666,6 +674,7 @@ struct Index {
                   }
                 }, (item: WebAppItem) => item.id)
               }
+              .cachedCount(10)
               .width('100%')
               .layoutWeight(1)
               .padding({ left: 16, right: 16, top: 12, bottom: 16 })
@@ -682,12 +691,14 @@ struct Index {
       .width('100%')
       .height('100%')
       .backgroundColor($r('app.color.app_background'))
+      .transition(TransitionEffect.opacity(0.5).animation({ duration: 300, curve: Curve.EaseInOut }))
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.app_background'))
-    .title('WebBoard')
+    .title($r('app.string.nav_title_apps'))
     .menus(this.Menus)
     .navDestination(this.buildNavDestination)
+    .mode(NavigationMode.Stack)
   }
 }

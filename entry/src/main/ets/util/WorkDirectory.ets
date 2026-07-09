@@ -2,6 +2,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import { WebAppItem } from '../model/WebAppItem';
 import { SourceType, WebBoardConstants } from '../common/Constants';
+import { Logger } from '../common/Logger';
 
 export class WorkDirectory {
   static getPath(context: common.UIAbilityContext): string {
@@ -19,7 +20,7 @@ export class WorkDirectory {
       try {
         fs.mkdirSync(path)
       } catch (mkdirErr) {
-        console.error('WorkDirectory ensureDirectory failed: ' + path)
+        Logger.error('WorkDirectory', 'ensureDirectory failed: ' + path)
       }
     }
   }
