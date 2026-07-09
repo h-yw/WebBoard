@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"
+     font-family="-apple-system,'PingFang SC','Helvetica Neue',sans-serif">
+  <defs>
+    <!-- 叶片渐变：主体白色，带一点淡紫 -->
+    <linearGradient id="leafGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EBE6FF"/>
+    </linearGradient>
+    <!-- 叶脉网络渐变 -->
+    <linearGradient id="veinGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <!-- 阴影 -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#4C1D95" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- 浮动轨迹线（表示"浮"的动感） -->
+  <path d="M 200 780 Q 300 755 400 770" stroke="#FFFFFF" stroke-opacity="0.25"
+        stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 180 830 Q 280 805 420 820" stroke="#FFFFFF" stroke-opacity="0.15"
+        stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- 主体：叶片 — 修长优雅的柳叶形 -->
+  <g filter="url(#shadow)">
+    <!-- 叶片主轮廓：尖顶→宽中段→收底，比例更修长 -->
+    <path d="
+      M 512 160
+      C 620 185 770 370 780 530
+      C 780 670 660 810 512 850
+      C 360 810 240 670 240 530
+      C 240 370 390 185 512 160
+      Z"
+      fill="url(#leafGrad)"/>
+
+    <!-- 叶片右侧受光面高光 -->
+    <path d="
+      M 512 160
+      C 620 185 770 370 780 530
+      C 780 670 660 810 512 850
+      C 480 810 600 660 590 530
+      C 580 390 540 200 512 160
+      Z"
+      fill="#FFFFFF" fill-opacity="0.55"/>
+  </g>
+
+  <!-- 叶脉网络 = 叶片经络 + 网络连接线 -->
+  <g fill="none" stroke="url(#veinGrad)" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 主叶脉（从底部到顶部） -->
+    <path d="M 512 830 Q 514 500 512 180" stroke-width="5"/>
+
+    <!-- 左侧叶脉（分叉向外延伸，对齐新轮廓） -->
+    <path d="M 513 710 Q 400 630 290 530" stroke-width="3.5"/>
+    <path d="M 513 580 Q 400 480 260 430" stroke-width="3"/>
+    <path d="M 512 460 Q 430 370 340 300" stroke-width="2.5"/>
+    <path d="M 512 340 Q 470 280 430 230" stroke-width="2"/>
+
+    <!-- 右侧叶脉（分叉向外延伸，对齐新轮廓） -->
+    <path d="M 513 700 Q 630 630 740 540" stroke-width="3.5"/>
+    <path d="M 513 570 Q 630 480 770 440" stroke-width="3"/>
+    <path d="M 512 450 Q 590 370 680 310" stroke-width="2.5"/>
+    <path d="M 512 340 Q 550 280 600 235" stroke-width="2"/>
+
+    <!-- 网络节点 -->
+    <circle cx="290" cy="530" r="6" fill="#6366F1" stroke="none"/>
+    <circle cx="740" cy="540" r="6" fill="#6366F1" stroke="none"/>
+    <circle cx="260" cy="430" r="5" fill="#6366F1" stroke="none"/>
+    <circle cx="770" cy="440" r="5" fill="#6366F1" stroke="none"/>
+    <circle cx="340" cy="300" r="4.5" fill="#6366F1" stroke="none"/>
+    <circle cx="680" cy="310" r="4.5" fill="#6366F1" stroke="none"/>
+  </g>
+
+  <!-- 横向网络连线（叶脉之间的连接，形成网状结构） -->
+  <g fill="none" stroke="url(#veinGrad)" stroke-width="2" stroke-opacity="0.5" stroke-linecap="round">
+    <path d="M 330 500 Q 430 470 510 490"/>
+    <path d="M 510 490 Q 600 470 700 500"/>
+    <path d="M 290 400 Q 410 380 510 395"/>
+    <path d="M 510 395 Q 610 380 730 400"/>
+  </g>
+
+  <!-- 小圆点装饰（网络数据包/露珠） -->
+  <g fill="#FFFFFF">
+    <circle cx="420" cy="485" r="3.5" fill-opacity="0.8"/>
+    <circle cx="600" cy="485" r="3.5" fill-opacity="0.8"/>
+    <circle cx="400" cy="393" r="3" fill-opacity="0.7"/>
+    <circle cx="620" cy="395" r="3" fill-opacity="0.7"/>
+  </g>
+</svg>
