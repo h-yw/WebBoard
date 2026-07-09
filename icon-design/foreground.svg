@@ -1,90 +1,97 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"
      font-family="-apple-system,'PingFang SC','Helvetica Neue',sans-serif">
   <defs>
-    <!-- 叶片渐变：主体白色，带一点淡紫 -->
-    <linearGradient id="leafGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+    <linearGradient id="leafGrad" x1="0.15" y1="0" x2="0.85" y2="1">
       <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#EBE6FF"/>
+      <stop offset="100%" stop-color="#EDE9FE"/>
     </linearGradient>
-    <!-- 叶脉网络渐变 -->
     <linearGradient id="veinGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#6366F1"/>
       <stop offset="100%" stop-color="#8B5CF6"/>
     </linearGradient>
-    <!-- 阴影 -->
-    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#4C1D95" flood-opacity="0.35"/>
+    <filter id="shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="#4C1D95" flood-opacity="0.30"/>
     </filter>
   </defs>
 
-  <!-- 浮动轨迹线（表示"浮"的动感） -->
-  <path d="M 200 780 Q 300 755 400 770" stroke="#FFFFFF" stroke-opacity="0.25"
-        stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M 180 830 Q 280 805 420 820" stroke="#FFFFFF" stroke-opacity="0.15"
+  <!-- 浮动轨迹线 -->
+  <path d="M 220 790 Q 320 765 420 780" stroke="#FFFFFF" stroke-opacity="0.20"
         stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 200 840 Q 300 815 440 830" stroke="#FFFFFF" stroke-opacity="0.12"
+        stroke-width="2" fill="none" stroke-linecap="round"/>
 
-  <!-- 主体：叶片 — 修长优雅的柳叶形 -->
+  <!-- 叶片主体 -->
   <g filter="url(#shadow)">
-    <!-- 叶片主轮廓：尖顶→宽中段→收底，比例更修长 -->
     <path d="
       M 512 160
-      C 620 185 770 370 780 530
-      C 780 670 660 810 512 850
-      C 360 810 240 670 240 530
-      C 240 370 390 185 512 160
+      C 620 180 770 400 770 540
+      C 770 680 650 810 512 850
+      C 374 810 254 680 254 540
+      C 254 400 404 180 512 160
       Z"
       fill="url(#leafGrad)"/>
 
-    <!-- 叶片右侧受光面高光 -->
     <path d="
       M 512 160
-      C 620 185 770 370 780 530
-      C 780 670 660 810 512 850
-      C 480 810 600 660 590 530
-      C 580 390 540 200 512 160
+      C 620 180 770 400 770 540
+      C 770 680 650 810 512 850
+      C 490 810 620 660 610 540
+      C 600 400 545 195 512 160
       Z"
-      fill="#FFFFFF" fill-opacity="0.55"/>
+      fill="#FFFFFF" fill-opacity="0.45"/>
   </g>
 
-  <!-- 叶脉网络 = 叶片经络 + 网络连接线 -->
+  <!-- ========== 叶脉系统 ========== -->
+  <!-- 叶脉终点坐标（用于节点对齐）：
+       左侧: (330,570) (320,470) (370,340) (440,265)
+       右侧: (700,570) (710,470) (660,340) (585,265) -->
   <g fill="none" stroke="url(#veinGrad)" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 主叶脉（从底部到顶部） -->
-    <path d="M 512 830 Q 514 500 512 180" stroke-width="5"/>
+    <!-- 主叶脉 -->
+    <path d="M 512 830 Q 514 550 512 180" stroke-width="4.5"/>
 
-    <!-- 左侧叶脉（分叉向外延伸，对齐新轮廓） -->
-    <path d="M 513 710 Q 400 630 290 530" stroke-width="3.5"/>
-    <path d="M 513 580 Q 400 480 260 430" stroke-width="3"/>
-    <path d="M 512 460 Q 430 370 340 300" stroke-width="2.5"/>
-    <path d="M 512 340 Q 470 280 430 230" stroke-width="2"/>
+    <!-- 左侧叶脉 -->
+    <path d="M 513 710 Q 420 650 330 570" stroke-width="3"/>
+    <path d="M 513 580 Q 420 500 320 470" stroke-width="2.5"/>
+    <path d="M 512 460 Q 440 390 370 340" stroke-width="2.2"/>
+    <path d="M 512 340 Q 470 300 440 265" stroke-width="1.8"/>
 
-    <!-- 右侧叶脉（分叉向外延伸，对齐新轮廓） -->
-    <path d="M 513 700 Q 630 630 740 540" stroke-width="3.5"/>
-    <path d="M 513 570 Q 630 480 770 440" stroke-width="3"/>
-    <path d="M 512 450 Q 590 370 680 310" stroke-width="2.5"/>
-    <path d="M 512 340 Q 550 280 600 235" stroke-width="2"/>
-
-    <!-- 网络节点 -->
-    <circle cx="290" cy="530" r="6" fill="#6366F1" stroke="none"/>
-    <circle cx="740" cy="540" r="6" fill="#6366F1" stroke="none"/>
-    <circle cx="260" cy="430" r="5" fill="#6366F1" stroke="none"/>
-    <circle cx="770" cy="440" r="5" fill="#6366F1" stroke="none"/>
-    <circle cx="340" cy="300" r="4.5" fill="#6366F1" stroke="none"/>
-    <circle cx="680" cy="310" r="4.5" fill="#6366F1" stroke="none"/>
+    <!-- 右侧叶脉 -->
+    <path d="M 513 710 Q 610 650 700 570" stroke-width="3"/>
+    <path d="M 513 580 Q 610 500 710 470" stroke-width="2.5"/>
+    <path d="M 512 460 Q 590 390 660 340" stroke-width="2.2"/>
+    <path d="M 512 340 Q 555 300 585 265" stroke-width="1.8"/>
   </g>
 
-  <!-- 横向网络连线（叶脉之间的连接，形成网状结构） -->
-  <g fill="none" stroke="url(#veinGrad)" stroke-width="2" stroke-opacity="0.5" stroke-linecap="round">
-    <path d="M 330 500 Q 430 470 510 490"/>
-    <path d="M 510 490 Q 600 470 700 500"/>
-    <path d="M 290 400 Q 410 380 510 395"/>
-    <path d="M 510 395 Q 610 380 730 400"/>
+  <!-- ========== 横向连接弦 ========== -->
+  <!-- 每根弦连接左右对应叶脉终点 -->
+  <g fill="none" stroke="url(#veinGrad)" stroke-width="1.8" stroke-opacity="0.35" stroke-linecap="round">
+    <path d="M 330 570 Q 420 555 512 565 Q 600 555 700 570"/>
+    <path d="M 320 470 Q 420 458 512 465 Q 600 458 710 470"/>
+    <path d="M 370 340 Q 440 332 512 338 Q 580 332 660 340"/>
   </g>
 
-  <!-- 小圆点装饰（网络数据包/露珠） -->
+  <!-- ========== 叶脉终点节点（紫圆点） ========== -->
+  <!-- 坐标与叶脉终点完全一致 -->
+  <g fill="#6366F1">
+    <!-- 第1对 -->
+    <circle cx="330" cy="570" r="5"/>
+    <circle cx="700" cy="570" r="5"/>
+    <!-- 第2对 -->
+    <circle cx="320" cy="470" r="4.5"/>
+    <circle cx="710" cy="470" r="4.5"/>
+    <!-- 第3对 -->
+    <circle cx="370" cy="340" r="4"/>
+    <circle cx="660" cy="340" r="4"/>
+    <!-- 第4对（最上方短叶脉） -->
+    <circle cx="440" cy="265" r="3.5"/>
+    <circle cx="585" cy="265" r="3.5"/>
+  </g>
+
+  <!-- ========== 白色小圆点（在弦与主脉的交点附近） ========== -->
   <g fill="#FFFFFF">
-    <circle cx="420" cy="485" r="3.5" fill-opacity="0.8"/>
-    <circle cx="600" cy="485" r="3.5" fill-opacity="0.8"/>
-    <circle cx="400" cy="393" r="3" fill-opacity="0.7"/>
-    <circle cx="620" cy="395" r="3" fill-opacity="0.7"/>
+    <circle cx="440" cy="562" r="3" fill-opacity="0.8"/>
+    <circle cx="580" cy="562" r="3" fill-opacity="0.8"/>
+    <circle cx="430" cy="463" r="2.8" fill-opacity="0.7"/>
+    <circle cx="590" cy="463" r="2.8" fill-opacity="0.7"/>
   </g>
 </svg>
