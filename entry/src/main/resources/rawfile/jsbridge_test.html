@@ -198,6 +198,7 @@
     <div class="btn-row">
       <button class="btn btn-success" onclick="callSystemShare('text')">分享文本</button>
       <button class="btn btn-success" onclick="callSystemShare('url')">分享链接</button>
+      <button class="btn btn-success" onclick="callSystemShare('image')" id="btnShareImage" disabled>分享图片(先选图)</button>
     </div>
     <div class="result-box" id="resultShare"></div>
   </div>
@@ -340,11 +341,25 @@ function callModifyNavStyle(style, title) {
 }
 
 // 3. systemShare
+var lastPickedImage = ''
 function callSystemShare(type) {
   const params = {
-    content: type === 'text' ? '来自浮叶 WebLeaf 的分享测试' : '测试分享链接',
+    content: '来自浮叶 WebLeaf 的分享测试',
     title: '浮叶 WebLeaf',
-    url: type === 'url' ? 'https://hlovez.life' : ''
+    url: '',
+    image: ''
+  }
+  if (type === 'url') {
+    params.content = '测试分享链接'
+    params.url = 'https://hlovez.life'
+  } else if (type === 'image') {
+    if (lastPickedImage) {
+      params.image = lastPickedImage
+      params.title = '分享图片'
+    } else {
+      showToast('请先选择图片')
+      return
+    }
   }
   window.JSBridge.call('systemShare', params, function(res) {
     showResult('resultShare', res.data || { message: '分享面板已关闭' }, res.status)
@@ -366,6 +381,13 @@ function callImagePick() {
           img.style.cssText = 'width:80px;height:80px;border-radius:8px;object-fit:cover;border:1px solid #E2E8F0;'
           container.appendChild(img)
         }
+      }
+      // 保存第一张图片路径用于分享
+      if (res.data[0].path) {
+        lastPickedImage = res.data[0].path
+        document.getElementById('btnShareImage').disabled = false
+        document.getElementById('btnShareImage').textContent = '分享图片'
+        showToast('已选择图片，可点击分享图片')
       }
     }
   })

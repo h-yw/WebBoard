@@ -5,7 +5,7 @@ import { deviceInfo } from '@kit.BasicServicesKit'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
-import { fileIo } from '@kit.CoreFileKit'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { vibrator } from '@kit.SensorServiceKit'
 import { util } from '@kit.ArkTS'
 import { Logger } from '../common/Logger'
@@ -275,12 +275,32 @@ export class JSBridge {
       const content: string = params.content || ''
       const title: string = params.title || ''
       const url: string = params.url || ''
+      const image: string = params.image || ''
 
-      const sharedData = new systemShare.SharedData({
-        utd: url ? utd.UniformDataType.HYPERLINK : utd.UniformDataType.PLAIN_TEXT,
-        content: content,
-        title: title
-      })
+      let sharedData: systemShare.SharedData
+      if (image.length > 0) {
+        // 分享图片
+        const imageUri: string = image.startsWith('file://') ? image : fileUri.getUriFromPath(image)
+        sharedData = new systemShare.SharedData({
+          utd: utd.UniformDataType.IMAGE,
+          uri: imageUri,
+          title: title
+        })
+      } else if (url.length > 0) {
+        // 分享链接
+        sharedData = new systemShare.SharedData({
+          utd: utd.UniformDataType.HYPERLINK,
+          content: url,
+          title: title
+        })
+      } else {
+        // 分享文本
+        sharedData = new systemShare.SharedData({
+          utd: utd.UniformDataType.PLAIN_TEXT,
+          content: content,
+          title: title
+        })
+      }
 
       const controller = new systemShare.ShareController(sharedData)
       const shareResult: ShareResult = { platform: 'system_share' }
