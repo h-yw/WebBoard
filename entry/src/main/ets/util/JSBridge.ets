@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb'
 import { common, bundleManager } from '@kit.AbilityKit'
 import { connection } from '@kit.NetworkKit'
+import request from '@ohos.request'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
@@ -269,7 +270,7 @@ export class JSBridge {
     }
   }
 
-  private handleSystemShare(paramsStr: string, callId: string): void {
+  private async handleSystemShare(paramsStr: string, callId: string): Promise<void> {
     try {
       const params: ShareParams = JSON.parse(paramsStr) as ShareParams
       const content: string = params.content || ''
@@ -279,8 +280,51 @@ export class JSBridge {
 
       let sharedData: systemShare.SharedData
       if (image.length > 0) {
-        // 分享图片
-        const imageUri: string = image.startsWith('file://') ? image : fileUri.getUriFromPath(image)
+        // 分享图片：本地路径 / file:// / 网络URL
+        let imageUri: string = image
+        if (image.startsWith('http://') || image.startsWith('https://')) {
+          // 网络图片 → 下载到缓存
+          const timestamp: number = Date.now()
+          const ext: string = image.endsWith('.png') ? '.png' : '.jpg'
+          const tmpPath: string = this.context.cacheDir + '/share_img_' + timestamp.toString() + ext
+          try {
+            const downloadTask: request.DownloadTask = await request.downloadFile(this.context, {
+              url: image,
+              filePath: tmpPath
+            })
+            await new Promise<void>((resolve: Function, reject: Function) => {
+              downloadTask.on('complete', () => { resolve() })
+              downloadTask.on('fail', (err: number) => { reject(new Error('download failed: ' + err.toString())) })
+            })
+            imageUri = fileUri.getUriFromPath(tmpPath)
+          } catch (e) {
+            Logger.error('JSBridge', 'download image failed, fallback to url')
+            // 降级为分享链接
+            sharedData = new systemShare.SharedData({
+              utd: utd.UniformDataType.HYPERLINK,
+              content: image,
+              title: title
+            })
+            const controller = new systemShare.ShareController(sharedData)
+            let fbShared: boolean = false
+            controller.on('shareCompleted', (fbResult: systemShare.ShareOperationResult) => {
+              fbShared = true
+              const fbPlatform: string = fbResult.targetAbilityInfo.name
+              const fbShareResult: ShareResult = { platform: fbPlatform }
+              this.callback(callId, { status: 'ok', data: fbShareResult as object })
+            })
+            controller.on('dismiss', () => {
+              if (!fbShared) {
+                const fbShareResult: ShareResult = { platform: 'cancelled' }
+                this.callback(callId, { status: 'ok', data: fbShareResult as object })
+              }
+            })
+            controller.show(this.context, {})
+            return
+          }
+        } else if (!image.startsWith('file://')) {
+          imageUri = fileUri.getUriFromPath(image)
+        }
         sharedData = new systemShare.SharedData({
           utd: utd.UniformDataType.IMAGE,
           uri: imageUri,
@@ -303,10 +347,23 @@ export class JSBridge {
       }
 
       const controller = new systemShare.ShareController(sharedData)
-      const shareResult: ShareResult = { platform: 'system_share' }
-      controller.show(this.context, {})
+      let sharedToTarget: boolean = false
 
-      this.callback(callId, { status: 'ok', data: shareResult as object })
+      controller.on('shareCompleted', (result: systemShare.ShareOperationResult) => {
+        sharedToTarget = true
+        const platform: string = result.targetAbilityInfo.name
+        const shareResult: ShareResult = { platform: platform }
+        this.callback(callId, { status: 'ok', data: shareResult as object })
+      })
+
+      controller.on('dismiss', () => {
+        if (!sharedToTarget) {
+          const shareResult: ShareResult = { platform: 'cancelled' }
+          this.callback(callId, { status: 'ok', data: shareResult as object })
+        }
+      })
+
+      controller.show(this.context, {})
     } catch (e) {
       Logger.error('JSBridge', 'systemShare failed')
       this.callback(callId, { status: 'error', error: 'systemShare failed' })

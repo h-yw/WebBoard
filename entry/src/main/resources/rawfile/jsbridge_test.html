@@ -199,6 +199,7 @@
       <button class="btn btn-success" onclick="callSystemShare('text')">分享文本</button>
       <button class="btn btn-success" onclick="callSystemShare('url')">分享链接</button>
       <button class="btn btn-success" onclick="callSystemShare('image')" id="btnShareImage" disabled>分享图片(先选图)</button>
+      <button class="btn btn-success" onclick="shareNetworkImage()">分享网络图片</button>
     </div>
     <div class="result-box" id="resultShare"></div>
   </div>
@@ -398,6 +399,20 @@ function callVibrate(duration, count) {
   window.JSBridge.call('vibrate', { duration: duration, count: count }, function(res) {
     showToast('震动 ' + count + ' 次，每次 ' + duration + 'ms')
     showResult('resultVibrate', { duration: duration, count: count, status: res.status }, res.status)
+  })
+}
+
+// 网络图片分享
+function shareNetworkImage() {
+  const imgUrl = 'https://developer.huawei.com/allianceCmsResource/resource/HUAWEI_Developer_VUE/images/0618xiaoyi/2.png'
+  window.JSBridge.call('systemShare', {
+    title: '网络图片分享',
+    image: imgUrl
+  }, function(res) {
+    showResult('resultShare', res.data || { message: '分享面板已关闭，网络图片已自动下载后分享' }, res.status)
+    if (res.status === 'ok') {
+      showToast('网络图片已下载并分享')
+    }
   })
 }
 
