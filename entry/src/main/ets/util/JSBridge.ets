@@ -92,6 +92,7 @@ export class JSBridge {
   private navChangeCallback: ((style: number, title?: string) => void) | null = null
   private backPressCallback: (() => boolean) | null = null
   private backPressCallbackIds: string[] = []
+  private navigateBackCallback: (() => void) | null = null
 
   constructor(controller: webview.WebviewController, context: common.UIAbilityContext) {
     this.controller = controller
@@ -159,6 +160,9 @@ export class JSBridge {
       case 'onBackPress':
         this.handleOnBackPress(params, callId)
         break
+      case 'navigateBack':
+        this.handleNavigateBack(callId)
+        break
       default:
         this.callback(callId, { status: 'error', error: 'unknown method: ' + method })
         break
@@ -177,6 +181,10 @@ export class JSBridge {
 
   setNavChangeCallback(cb: ((style: number, title?: string) => void) | null): void {
     this.navChangeCallback = cb
+  }
+
+  setNavigateBackCallback(cb: (() => void) | null): void {
+    this.navigateBackCallback = cb
   }
 
   setBackPressCallback(cb: (() => boolean) | null): void {
@@ -409,6 +417,17 @@ export class JSBridge {
       this.callback(callId, { status: 'ok', data: null })
     } catch (e) {
       this.callback(callId, { status: 'error', error: 'onBackPress failed' })
+    }
+  }
+
+  private handleNavigateBack(callId: string): void {
+    try {
+      if (this.navigateBackCallback) {
+        this.navigateBackCallback()
+      }
+      this.callback(callId, { status: 'ok', data: null })
+    } catch (e) {
+      this.callback(callId, { status: 'error', error: 'navigateBack failed' })
     }
   }
 }

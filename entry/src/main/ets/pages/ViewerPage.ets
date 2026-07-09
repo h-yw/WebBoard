@@ -139,6 +139,11 @@ export struct ViewerPage {
         this.customTitle = title
       }
     })
+    this.jsBridge.setNavigateBackCallback((): void => {
+      if (this.navPathStack) {
+        this.navPathStack.pop()
+      }
+    })
   }
 
   private handleBackPress(): boolean {

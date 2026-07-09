@@ -237,6 +237,21 @@
   </div>
 </div>
 
+<!-- 7. navigateBack -->
+<div class="section">
+  <div class="section-title">🔙 自定义返回</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">navigateBack</div>
+        <div class="method-desc">从 H5 侧触发路由返回</div>
+      </div>
+      <button class="btn" onclick="callNavigateBack()">返回上一页</button>
+    </div>
+    <div class="result-box" id="resultNavigateBack"></div>
+  </div>
+</div>
+
 <!-- 6. onBackPress -->
 <div class="section">
   <div class="section-title">🔙 返回拦截</div>
@@ -361,6 +376,13 @@ function callVibrate(duration, count) {
   window.JSBridge.call('vibrate', { duration: duration, count: count }, function(res) {
     showToast('震动 ' + count + ' 次，每次 ' + duration + 'ms')
     showResult('resultVibrate', { duration: duration, count: count, status: res.status }, res.status)
+  })
+}
+
+// 7. navigateBack - 自定义返回
+function callNavigateBack() {
+  window.JSBridge.call('navigateBack', {}, function(res) {
+    showResult('resultNavigateBack', { status: res.status, message: '路由返回已触发' }, res.status)
   })
 }
 
