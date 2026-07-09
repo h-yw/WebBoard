@@ -323,7 +323,7 @@ struct Index {
   private async shareAppCard(item: WebAppItem): Promise<void> {
     try {
       const uiContext: UIContext = this.getUIContext()
-      const params: ShareCardParams = new ShareCardParams(item.name, item.description)
+      const params: ShareCardParams = new ShareCardParams(item.name, item.description, item.logoType, item.logoUri)
       const contentNode: ComponentContent<ShareCardParams> = new ComponentContent(uiContext, wrapBuilder(AppShareCardBuilder), params)
 
       const pixelMap: PixelMap = await uiContext.getComponentSnapshot()
@@ -354,8 +354,7 @@ struct Index {
       })
 
       const controller: systemShare.ShareController = new systemShare.ShareController(sharedData)
-      let shared: boolean = false
-      controller.on('shareCompleted', () => { shared = true })
+      controller.on('shareCompleted', () => {})
       controller.on('dismiss', () => {
         setTimeout(() => {
           try {
