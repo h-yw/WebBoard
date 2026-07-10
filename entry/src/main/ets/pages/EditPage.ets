@@ -6,6 +6,7 @@ import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType, SourceType } from '../common/Constants'
 import { Dialog } from '../ui/DialogUtil'
 import { Toast } from '../ui/ToastUtil'
+import { EventArg, eventEmitter } from '../common/EventEmitter'
 
 interface EditParam {
   appId: string
@@ -146,6 +147,7 @@ export struct EditPage {
 
       this.hasUnsavedChanges = false
       Toast.show('保存成功')
+      eventEmitter.emit("item:update",Object({item:item.id}) as  EventArg)
       setTimeout(() => {
         this.navPathStack?.pop()
       }, 500)

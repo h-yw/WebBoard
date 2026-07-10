@@ -19,6 +19,7 @@ import { Logger } from '../common/Logger'
 import { ComponentContent } from '@kit.ArkUI'
 import { scanBarcode, scanCore } from '@kit.ScanKit'
 import { AppShareCardBuilder, ShareCardParams } from '../component/AppShareCard'
+import { eventEmitter } from '../common/EventEmitter'
 
 interface ScanNavParam {
   scanUrl: string
@@ -84,6 +85,10 @@ struct Index {
     await this.loadApps()
     await this.ensurePresetApps()
     this.preloadRecentApps()
+    eventEmitter.on("item:update",(res)=>{
+      console.log("item:update======>",JSON.stringify(res))
+      this.loadApps()
+    })
   }
 
   onPageShow(): void {
