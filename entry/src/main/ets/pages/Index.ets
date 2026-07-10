@@ -89,10 +89,19 @@ struct Index {
       console.log("item:update======>",JSON.stringify(res))
       this.loadApps()
     })
+    eventEmitter.on("item:add",(res)=>{
+      console.log("item:add======>",JSON.stringify(res))
+      this.loadApps()
+    })
   }
 
   onPageShow(): void {
-    // 返回时检查是否需要刷新
+    this.loadApps()
+  }
+
+  aboutToDisappear(): void {
+    eventEmitter.off("item:update")
+    eventEmitter.off("item:add")
   }
 
   onRefreshTick(): void {

@@ -5,6 +5,7 @@ import { FileManager } from '../util/FileManager'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType, SourceType } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
+import { EventArg, eventEmitter } from '../common/EventEmitter'
 
 @Component
 export struct ImportPage {
@@ -199,6 +200,7 @@ export struct ImportPage {
       await dbMgr.addApp(item)
 
       Toast.show('导入成功')
+      eventEmitter.emit("item:add", Object({item: item.id}) as EventArg)
       this.navPathStack?.pop()
     } catch (e) {
       const err = e as Error

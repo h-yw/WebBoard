@@ -9,6 +9,7 @@ type EventFn = (args?:object)=>void
 interface AbsEventEmitter {
   events: EmitterEvent
   on(eventName: EventName, callback: Function): void
+  off(eventName: EventName, callback?: Function): void
   emit(eventName: EventName, args?: EventArg): void
 }
 
@@ -26,6 +27,19 @@ class EventEmitter implements AbsEventEmitter {
       this.events[eventName] = [];
     }
     this.events[eventName].push(callback);
+  }
+
+  off(eventName: EventName, callback?: EventFn) {
+    if (this.events[eventName]) {
+      if (callback) {
+        const idx = this.events[eventName].indexOf(callback)
+        if (idx >= 0) {
+          this.events[eventName].splice(idx, 1)
+        }
+      } else {
+        this.events[eventName] = []
+      }
+    }
   }
 
   emit(eventName: EventName, args?: EventArg) {
