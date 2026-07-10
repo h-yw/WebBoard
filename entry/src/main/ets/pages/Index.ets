@@ -17,7 +17,14 @@ import { LogoType, SourceType, LayoutMode } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
 import { Logger } from '../common/Logger'
 import { ComponentContent } from '@kit.ArkUI'
-import { AppShareCardBuilder, ShareCardParams } from '../common/AppShareCard'
+import { scanBarcode, scanCore } from '@kit.ScanKit'
+import { AppShareCardBuilder, ShareCardParams } from '../component/AppShareCard'
+
+interface ScanNavParam {
+  scanUrl: string
+  scanName: string
+  scanDesc: string
+}
 
 interface ViewerParam {
   entryHtml: string
@@ -41,7 +48,7 @@ struct Index {
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
-  @StorageProp('dataChanged') @Watch('onDataChanged') dataChanged: boolean = false
+  @StorageProp('dataRefreshTick') @Watch('onRefreshTick') dataRefreshTick: number = 0
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
@@ -80,14 +87,11 @@ struct Index {
   }
 
   onPageShow(): void {
-    // dataChanged 通过 @Watch 自动触发，无需手动检查
+    // 返回时检查是否需要刷新
   }
 
-  onDataChanged(): void {
-    if (this.dataChanged) {
-      this.loadApps()
-      AppStorage.setOrCreate('dataChanged', false)
-    }
+  onRefreshTick(): void {
+    this.loadApps()
   }
 
   async ensurePresetApps(): Promise<void> {
@@ -132,7 +136,6 @@ struct Index {
     }
 
     if (hasNew) {
-      AppStorage.setOrCreate('dataChanged', true)
       await this.loadApps()
     }
   }
@@ -250,34 +253,28 @@ struct Index {
   }
 
   showActionSheet(item: WebAppItem): void {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.action_title'),
-      message: $r('app.string.action_prompt'),
-      buttons: [
-        {
-          value: $r('app.string.btn_edit'),
-          action: () => {
-            this.navigateToEdit(item)
-          }
-        },
-        {
-          value: $r('app.string.btn_share'),
-          action: () => {
-            this.shareAppCard(item)
-          }
-        },
-        {
-          value: $r('app.string.btn_delete'),
-          action: () => {
-            this.confirmDelete(item)
-          }
-        },
-        {
-          value: $r('app.string.btn_cancel'),
-          action: () => {}
-        }
-      ]
-    })
+    if (item.sourceType === SourceType.URL) {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.action_title'),
+        message: $r('app.string.action_prompt'),
+        buttons: [
+          { value: $r('app.string.btn_edit'), action: (): void => { this.navigateToEdit(item) } },
+          { value: $r('app.string.btn_share'), action: (): void => { this.shareAppCard(item) } },
+          { value: $r('app.string.btn_delete'), action: (): void => { this.confirmDelete(item) } },
+          { value: $r('app.string.btn_cancel'), action: (): void => {} }
+        ]
+      })
+    } else {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.action_title'),
+        message: $r('app.string.action_prompt'),
+        buttons: [
+          { value: $r('app.string.btn_edit'), action: (): void => { this.navigateToEdit(item) } },
+          { value: $r('app.string.btn_delete'), action: (): void => { this.confirmDelete(item) } },
+          { value: $r('app.string.btn_cancel'), action: (): void => {} }
+        ]
+      })
+    }
   }
 
   openViewer(item: WebAppItem): void {
@@ -320,10 +317,50 @@ struct Index {
     Toast.show('已删除')
   }
 
+  private async startScan(): Promise<void> {
+    try {
+      const options: scanBarcode.ScanOptions = {
+        scanTypes: [scanCore.ScanType.QR_CODE],
+        enableMultiMode: false,
+        enableAlbum: true
+      }
+      const result: scanBarcode.ScanResult = await scanBarcode.startScanForResult(this.context!, options)
+      const rawVal: string = result.originalValue
+      if (rawVal.length === 0 || rawVal === 'undefined') {
+        Toast.show('未识别到二维码内容')
+        return
+      }
+      const cleaned: string = rawVal.trim()
+      Logger.info('Index', 'scan raw: [' + cleaned + '] len=' + cleaned.length.toString())
+      let parsed: Record<string, string>
+      try {
+        parsed = JSON.parse(cleaned) as Record<string, string>
+      } catch (e) {
+        this.getUIContext().showAlertDialog({
+          title: '扫码结果',
+          message: '原始内容:\n' + cleaned + '\n\n长度: ' + cleaned.length.toString(),
+          buttons: [{ value: '确定', action: (): void => {} }]
+        })
+        return
+      }
+      const title: string = parsed['t'] || ''
+      const desc: string = parsed['d'] || ''
+      const url: string = parsed['u'] || ''
+      if (url.length > 0) {
+        const scanNav: ScanNavParam = { scanUrl: url, scanName: title, scanDesc: desc }
+        this.navPathStack.pushPath({ name: 'ImportPage', param: scanNav })
+      } else {
+        Toast.show('二维码内容不包含有效网址')
+      }
+    } catch (e) {
+      Toast.show('扫码已取消')
+    }
+  }
+
   private async shareAppCard(item: WebAppItem): Promise<void> {
     try {
       const uiContext: UIContext = this.getUIContext()
-      const params: ShareCardParams = new ShareCardParams(item.name, item.description, item.logoType, item.logoUri)
+      const params: ShareCardParams = new ShareCardParams(item.name, item.description, item.logoType, item.logoUri, item.entryHtml)
       const contentNode: ComponentContent<ShareCardParams> = new ComponentContent(uiContext, wrapBuilder(AppShareCardBuilder), params)
 
       const pixelMap: PixelMap = await uiContext.getComponentSnapshot()
@@ -350,7 +387,8 @@ struct Index {
       const sharedData: systemShare.SharedData = new systemShare.SharedData({
         utd: utd.UniformDataType.IMAGE,
         uri: imageUri,
-        title: item.name
+        title: item.name,
+
       })
 
       const controller: systemShare.ShareController = new systemShare.ShareController(sharedData)
@@ -621,6 +659,17 @@ struct Index {
       .borderRadius(6)
       .onClick(() => {
         this.toggleLayout()
+      })
+
+      Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        SymbolGlyph($r('sys.symbol.qrcode'))
+          .fontSize(16)
+          .fontColor([$r('app.color.app_text_secondary')])
+      }
+      .height(32)
+      .borderRadius(6)
+      .onClick(() => {
+        this.startScan()
       })
 
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {

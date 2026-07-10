@@ -144,7 +144,6 @@ export struct EditPage {
       const dbMgr = DatabaseManager.getInstance(this.context)
       await dbMgr.updateApp(item)
 
-      AppStorage.setOrCreate('dataChanged', true)
       this.hasUnsavedChanges = false
       Toast.show('保存成功')
       setTimeout(() => {

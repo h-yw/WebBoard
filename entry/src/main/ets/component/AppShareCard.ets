@@ -1,22 +1,31 @@
-import { LogoType } from './Constants'
+import { LogoType } from '../common/Constants'
+import { JSON } from '@kit.ArkTS'
+
+interface QrData {
+  t: string
+  d: string
+  u: string
+}
 
 export class ShareCardParams {
   appName: string = ''
   appDescription: string = ''
   logoType: string = LogoType.INITIAL
   logoUri: string = ''
+  entryHtml: string = ''
 
-  constructor(name: string, desc: string, logoType: string = LogoType.INITIAL, logoUri: string = '') {
+  constructor(name: string, desc: string, logoType: string = LogoType.INITIAL, logoUri: string = '', entryHtml: string = '') {
     this.appName = name
     this.appDescription = desc
     this.logoType = logoType
     this.logoUri = logoUri
+    this.entryHtml = entryHtml
   }
 }
 
 @Builder
 export function AppShareCardBuilder(params: ShareCardParams) {
-  AppShareCard({ appName: params.appName, appDescription: params.appDescription, logoType: params.logoType, logoUri: params.logoUri })
+  AppShareCard({ appName: params.appName, appDescription: params.appDescription, logoType: params.logoType, logoUri: params.logoUri, entryHtml: params.entryHtml })
 }
 
 @Component
@@ -25,6 +34,16 @@ export struct AppShareCard {
   @Prop appDescription: string = ''
   @Prop logoType: string = LogoType.INITIAL
   @Prop logoUri: string = ''
+  @Prop entryHtml: string = ''
+
+  qrContent(): string {
+    const qrData: QrData = {
+      t: this.appName,
+      d: this.appDescription,
+      u: this.entryHtml
+    }
+    return JSON.stringify(qrData)
+  }
 
   getInitial(): string {
     if (this.appName.length > 0) {
@@ -53,9 +72,28 @@ export struct AppShareCard {
           .fontWeight(FontWeight.Medium)
           .fontColor('#6366F1')
           .margin({ left: 6 })
+        Blank()
+        // ── 二维码 ──
+        if (this.entryHtml.length > 0) {
+          Column({ space: 4 }) {
+            QRCode(this.qrContent())
+              .width(25)
+              .height(25)
+              .color('#1E293B')
+              .borderRadius(16)
+              .contentOpacity(0.5)
+
+            Text('扫码添加')
+              .fontSize(9)
+              .fontColor('#CBD5E1')
+          }
+          .alignItems(HorizontalAlign.Center)
+          .margin({ top: 16, bottom: 12 })
+        }
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
+      .justifyContent(FlexAlign.Center)
 
       // ── 应用图标 ──
       Column() {
@@ -108,33 +146,29 @@ export struct AppShareCard {
         Column().margin({ bottom: 28 })
       }
 
-      // ── 分隔装饰 ──
-      Row() {
-        Divider()
-          .width('30%')
-          .color('#E2E8F0')
-        Text('✦')
-          .fontSize(8)
-          .fontColor('#CBD5E1')
-          .margin({ left: 10, right: 10 })
-        Divider()
-          .width('30%')
-          .color('#E2E8F0')
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .justifyContent(FlexAlign.Center)
-
       // ── 底部品牌 ──
-      Text('来自 浮叶 WebLeaf')
-        .fontSize(11)
-        .fontColor('#94A3B8')
-        .margin({ top: 16, bottom: 4 })
+      Row(){
+        Divider()
+          .layoutWeight(1)
+          .strokeWidth(1)
+          .backgroundColor('#94A3B8')
+        Text('来自 浮叶 WebLeaf')
+          .fontSize(11)
+          .fontColor('#94A3B8')
+          .margin({ top:  4 , bottom: 4 })
+          .padding({left:4,right:4})
+        Divider()
+          .layoutWeight(1)
+          .strokeWidth(1)
+          .backgroundColor('#94A3B8')
+      }
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      .width('100%')
     }
     .width(360)
     .padding({ left: 32, right: 32, top: 24, bottom: 20 })
     .backgroundColor('#FFFFFF')
-    .borderRadius(16)
     .alignItems(HorizontalAlign.Center)
   }
 }

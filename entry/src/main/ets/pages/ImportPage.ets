@@ -25,6 +25,28 @@ export struct ImportPage {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
     const info = this.queryNavigationInfo()
     this.navPathStack = info?.pathStack
+    // 检查扫码传参
+    if (this.navPathStack) {
+      const scanParams: object[] = this.navPathStack.getParamByName('ImportPage') as object[]
+      if (scanParams && scanParams.length > 0) {
+        const paramRecord: Record<string, string> = scanParams[0] as Record<string, string>
+        const scanUrl: string = paramRecord['scanUrl'] || ''
+        const scanName: string = paramRecord['scanName'] || ''
+        const scanDesc: string = paramRecord['scanDesc'] || ''
+        if (scanUrl.length > 0) {
+          this.urlInput = scanUrl
+          this.selectedFileUri = scanUrl
+          this.selectedFileName = scanName.length > 0 ? scanName : 'scan_import'
+          this.importMode = 'url'
+          if (scanName.length > 0) {
+            this.appName = scanName
+          }
+          if (scanDesc.length > 0) {
+            this.appDescription = scanDesc
+          }
+        }
+      }
+    }
   }
 
   getInitial(): string {
@@ -176,7 +198,6 @@ export struct ImportPage {
       const dbMgr = DatabaseManager.getInstance(this.context)
       await dbMgr.addApp(item)
 
-      AppStorage.setOrCreate('dataChanged', true)
       Toast.show('导入成功')
       this.navPathStack?.pop()
     } catch (e) {
