@@ -1,4 +1,4 @@
-import { common, ConfigurationConstant } from '@kit.AbilityKit'
+import { common, ConfigurationConstant, bundleManager } from '@kit.AbilityKit'
 import { DatabaseManager } from '../database/DatabaseManager'
 import { ColorMode } from '../common/Constants'
 import { Logger } from '../common/Logger'
@@ -7,6 +7,7 @@ import { Logger } from '../common/Logger'
 export struct SettingsPage {
   @State selectedMode: string = ColorMode.SYSTEM
   @State preloadEnabled: boolean = true
+  @State versionName: string = ''
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack | undefined = undefined
   private dbMgr: DatabaseManager | null = null
@@ -25,6 +26,13 @@ export struct SettingsPage {
         this.preloadEnabled = enabled === 'true'
       })
     }
+
+    bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).then((bundleInfo) => {
+      this.versionName = bundleInfo.versionName
+    }).catch(() => {
+      Logger.error('SettingsPage', 'Failed to get bundle info')
+      this.versionName = '1.0.0'
+    })
   }
 
   async applyColorMode(mode: string): Promise<void> {
@@ -223,7 +231,7 @@ export struct SettingsPage {
               .fontColor($r('app.color.app_text_primary'))
               .layoutWeight(1)
 
-            Text('1.0.0')
+            Text(this.versionName)
               .fontSize(15)
               .fontColor($r('app.color.app_text_muted'))
           }
