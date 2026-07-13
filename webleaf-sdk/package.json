@@ -1,0 +1,25 @@
+{
+  "name": "webleaf-sdk",
+  "version": "1.0.0",
+  "description": "WebLeaf SDK — HarmonyOS Native Bridge for H5 apps. Auto-injected by WebBoard container, also available as a standalone npm package for TypeScript support.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "harmonyos",
+    "webboard",
+    "jsbridge",
+    "native-bridge",
+    "webleaf"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

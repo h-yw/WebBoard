@@ -6,13 +6,7 @@ import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
 import { WebAppItem, AppDataSource, DatabaseManager, WebPreloader, WorkDirectory, LogoType, SourceType, LayoutMode, Toast, Dialog, Logger, eventEmitter } from 'container'
 import { shareAppCard, deleteDirectory, startScan } from '../util/IndexActions'
-
-interface MarketApp {
-  name: string
-  description: string
-  entryHtml: string
-  sourceType: string
-}
+import { MarketService, MarketAppInfo, getCategoryLabel, formatDownloads } from '../market/MarketService'
 
 interface ViewerParam {
   entryHtml: string
@@ -29,22 +23,6 @@ interface EditParam {
   sourceType: string
 }
 
-// Light app market data source
-const MARKET_APPS: MarketApp[] = [
-  {
-    name: 'JSBridge 测试',
-    description: '测试 JSBridge 所有原生方法调用',
-    entryHtml: 'rawfile://jsbridge_test.html',
-    sourceType: SourceType.PRESET
-  },
-  {
-    name: '速算估算微练',
-    description: '掌握 1/2 到 1/20 的快速转换，提升心算敏感度',
-    entryHtml: 'rawfile://code_artifact.html',
-    sourceType: SourceType.PRESET
-  }
-]
-
 @Entry
 @Component
 export struct Index {
@@ -58,6 +36,7 @@ export struct Index {
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
+  private marketService: MarketService = new MarketService()
   private updateListenerId: string = ''
   private addListenerId: string = ''
   private installedHtmlSet: Set<string> = new Set()
@@ -348,11 +327,11 @@ export struct Index {
     Toast.show('已删除')
   }
 
-  isMarketAppInstalled(marketApp: MarketApp): boolean {
-    return this.installedHtmlSet.has(marketApp.entryHtml)
+  isMarketAppInstalled(marketApp: MarketAppInfo): boolean {
+    return this.installedHtmlSet.has(marketApp.url)
   }
 
-  async addMarketApp(marketApp: MarketApp): Promise<void> {
+  async addMarketApp(marketApp: MarketAppInfo): Promise<void> {
     if (!this.dbMgr) {
       return
     }
@@ -362,8 +341,8 @@ export struct Index {
     item.description = marketApp.description
     item.logoType = LogoType.INITIAL
     item.logoUri = ''
-    item.entryHtml = marketApp.entryHtml
-    item.sourceType = marketApp.sourceType
+    item.entryHtml = marketApp.url
+    item.sourceType = SourceType.URL
     item.createTime = Date.now()
     await this.dbMgr.addApp(item)
     await this.loadApps()
@@ -563,24 +542,20 @@ export struct Index {
   }
 
   @Builder
-  MarketCard(marketApp: MarketApp) {
+  MarketCard(marketApp: MarketAppInfo) {
     Row() {
-      Stack() {
-        Text(this.getInitial(marketApp.name))
-          .fontSize(22)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
-      }
-      .width(56)
-      .height(56)
-      .borderRadius(12)
-      .linearGradient({
-        angle: 135,
-        colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
-      })
-      .alignContent(Alignment.Center)
+      // App emoji icon
+      Text(marketApp.icon)
+        .fontSize(36)
+        .width(56)
+        .height(56)
+        .textAlign(TextAlign.Center)
+        .borderRadius(12)
+        .backgroundColor($r('app.color.app_card_bg'))
+        .border({ width: 1, color: $r('app.color.app_border') })
 
       Column() {
+        // Title row: name + category badge
         Row() {
           Text(marketApp.name)
             .fontSize(16)
@@ -588,10 +563,10 @@ export struct Index {
             .fontColor($r('app.color.app_text_primary'))
             .layoutWeight(1)
 
-          Text('演示')
+          Text(getCategoryLabel(marketApp.category))
             .fontSize(11)
             .fontColor(Color.White)
-            .backgroundColor($r('app.color.app_success'))
+            .backgroundColor($r('app.color.app_primary'))
             .borderRadius(4)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
         }
@@ -599,34 +574,46 @@ export struct Index {
         .justifyContent(FlexAlign.SpaceBetween)
         .alignItems(VerticalAlign.Center)
 
+        // Description
         if (marketApp.description.length > 0) {
           Text(marketApp.description)
             .fontSize(13)
             .fontColor($r('app.color.app_text_secondary'))
-            .maxLines(3)
+            .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .margin({ top: 6 })
+            .margin({ top: 4 })
             .width('100%')
         }
 
+        // Bottom row: downloads info + action button
         Row() {
+          Row({ space: 4 }) {
+            Text('📥')
+              .fontSize(12)
+            Text(formatDownloads(marketApp.downloads) + ' 下载')
+              .fontSize(12)
+              .fontColor($r('app.color.app_text_muted'))
+          }
+          .alignItems(VerticalAlign.Center)
+          .layoutWeight(1)
+
           if (this.isMarketAppInstalled(marketApp)) {
             Button($r('app.string.btn_open'))
-              .height(32)
+              .height(30)
               .borderRadius(8)
               .fontSize(13)
               .backgroundColor($r('app.color.app_primary'))
               .fontColor(Color.White)
               .onClick(() => {
                 const param: ViewerParam = {
-                  entryHtml: marketApp.entryHtml,
+                  entryHtml: marketApp.url,
                   appName: marketApp.name
                 }
                 this.navPathStack.pushPath({ name: 'ViewerPage', param: param })
               })
           } else {
             Button($r('app.string.btn_add'))
-              .height(32)
+              .height(30)
               .borderRadius(8)
               .fontSize(13)
               .backgroundColor($r('app.color.app_success'))
@@ -637,7 +624,7 @@ export struct Index {
           }
         }
         .width('100%')
-        .justifyContent(FlexAlign.End)
+        .alignItems(VerticalAlign.Center)
         .margin({ top: 8 })
       }
       .layoutWeight(1)
@@ -659,33 +646,18 @@ export struct Index {
   @Builder
   MarketView() {
     Column() {
-      if (MARKET_APPS.length > 0) {
-        List({ space: 12 }) {
-          ForEach(MARKET_APPS, (marketApp: MarketApp) => {
-            ListItem() {
-              this.MarketCard(marketApp)
-            }
-          }, (marketApp: MarketApp) => marketApp.entryHtml)
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .padding({ left: 16, right: 16, top: 12, bottom: 16 })
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
-      } else {
-        Column() {
-          Text('📦')
-            .fontSize(48)
-          Text($r('app.string.market_empty'))
-            .fontSize(14)
-            .fontColor($r('app.color.app_text_muted'))
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
+      List({ space: 12 }) {
+        ForEach(this.marketService.getApps(), (marketApp: MarketAppInfo) => {
+          ListItem() {
+            this.MarketCard(marketApp)
+          }
+        }, (marketApp: MarketAppInfo) => marketApp.id)
       }
+      .width('100%')
+      .layoutWeight(1)
+      .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .height('100%')
