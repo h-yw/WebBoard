@@ -34,7 +34,6 @@ export struct WebContainer {
   private controller: webview.WebviewController = new webview.WebviewController()
   private jsBridge: JSBridge | null = null
   private context: common.UIAbilityContext | null = null
-  private navPathStack: NavPathStack | undefined = undefined
 
   // --- Public accessors for parent (ViewerPage) ---
 
@@ -52,13 +51,6 @@ export struct WebContainer {
 
   getCustomTitle(): string {
     return this.customTitle
-  }
-
-  /**
-   * Set the NavPathStack for navigation (used by parent ViewerPage).
-   */
-  setNavPathStack(stack: NavPathStack | undefined): void {
-    this.navPathStack = stack
   }
 
   // --- Lifecycle ---
@@ -136,9 +128,7 @@ export struct WebContainer {
       }
     })
     this.jsBridge.setNavigateBackCallback((): void => {
-      if (this.navPathStack) {
-        this.navPathStack.pop()
-      }
+      this.wcController.navigateBack()
     })
   }
 
@@ -188,9 +178,7 @@ export struct WebContainer {
               if (cb) {
                 cb()
               }
-              if (this.navPathStack) {
-                this.navPathStack.pop()
-              }
+              this.wcController.navigateBack()
             }
           })
       } catch (e) {

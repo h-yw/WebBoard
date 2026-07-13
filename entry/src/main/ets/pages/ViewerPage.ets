@@ -17,6 +17,11 @@ export struct ViewerPage {
     const info = this.queryNavigationInfo()
     this.navPathStack = info?.pathStack
     if (this.navPathStack) {
+      // Provide a navigateBack callback so WebContainer (in HSP) can
+      // pop the stack without importing NavPathStack type
+      this.wcController.navigateBack = (): void => {
+        this.navPathStack!.pop()
+      }
       const paramObj = this.navPathStack.getParamByName('ViewerPage') as ViewerParam[]
       if (paramObj && paramObj.length > 0) {
         this.entryHtml = paramObj[0].entryHtml || ''

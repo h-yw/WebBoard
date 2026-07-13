@@ -12,4 +12,5 @@ export class WebContainerController {
 
   navStyle: number = -1
   customTitle: string = ''
+  navigateBack: () => void = (): void => {}
 }
