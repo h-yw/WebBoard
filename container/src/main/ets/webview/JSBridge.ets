@@ -11,6 +11,20 @@ import { vibrator } from '@kit.SensorServiceKit'
 import { util } from '@kit.ArkTS'
 import { Logger } from '../common/Logger'
 
+export type SourceType = 'rawfile' | 'file' | 'url'
+
+export const SDK_VERSION: string = '1.0.0'
+
+export const ERROR_CODES: Record<string, string> = {
+  'OK': 'OK',
+  'PERMISSION_DENIED': 'PERMISSION_DENIED',
+  'USER_CANCELLED': 'USER_CANCELLED',
+  'METHOD_NOT_FOUND': 'METHOD_NOT_FOUND',
+  'TIMEOUT': 'TIMEOUT',
+  'INTERNAL_ERROR': 'INTERNAL_ERROR',
+  'INVALID_PARAMS': 'INVALID_PARAMS'
+}
+
 interface NavStyleParams {
   style: number
   title?: string
@@ -67,12 +81,25 @@ interface GetAppInfoResult {
   internet: string
   deviceBrand: string
   deviceModel: string
+  sdkVersion: string
+}
+
+interface VersionData {
+  sdk: string
+  container: string
+  api: number
+}
+
+interface HasMethodData {
+  available: boolean
 }
 
 interface JSBridgeResponse {
   status: string
+  code: string
   data?: object | null
   error?: string
+  message?: string
 }
 
 class JSBridgeProxyObject {
@@ -90,14 +117,16 @@ class JSBridgeProxyObject {
 export class JSBridge {
   private controller: webview.WebviewController
   private context: common.UIAbilityContext
+  private sourceType: SourceType
   private navChangeCallback: ((style: number, title?: string) => void) | null = null
   private backPressCallback: (() => boolean) | null = null
   private backPressCallbackIds: string[] = []
   private navigateBackCallback: (() => void) | null = null
 
-  constructor(controller: webview.WebviewController, context: common.UIAbilityContext) {
+  constructor(controller: webview.WebviewController, context: common.UIAbilityContext, sourceType: SourceType = 'file') {
     this.controller = controller
     this.context = context
+    this.sourceType = sourceType
   }
 
   get javaScriptProxy(): JsProxyObject {
@@ -142,6 +171,10 @@ export class JSBridge {
   }
 
   handleCall(method: string, params: string, callId: string): void {
+    if (!this.checkPermission(method)) {
+      this.callback(callId, { status: 'error', code: 'PERMISSION_DENIED', message: '方法在当前来源下不可用', error: 'permission denied' })
+      return
+    }
     switch (method) {
       case 'getAppInfo':
         this.handleGetAppInfo(callId)
@@ -164,8 +197,14 @@ export class JSBridge {
       case 'navigateBack':
         this.handleNavigateBack(callId)
         break
+      case 'getVersion':
+        this.handleGetVersion(callId)
+        break
+      case 'hasMethod':
+        this.handleHasMethod(params, callId)
+        break
       default:
-        this.callback(callId, { status: 'error', error: 'unknown method: ' + method })
+        this.callback(callId, { status: 'error', code: 'METHOD_NOT_FOUND', message: '未知方法: ' + method, error: 'unknown method' })
         break
     }
   }
@@ -198,6 +237,52 @@ export class JSBridge {
 
   hasBackPressCallback(): boolean {
     return this.backPressCallback !== null || this.backPressCallbackIds.length > 0
+  }
+
+  private getPermissionMap(): Record<string, string> {
+    if (this.sourceType === 'rawfile') {
+      return {
+        'getAppInfo': 'allow',
+        'modifyNavStyle': 'allow',
+        'systemShare': 'allow',
+        'systemImagePick': 'allow',
+        'vibrate': 'allow',
+        'onBackPress': 'allow',
+        'navigateBack': 'allow'
+      }
+    }
+    return {
+      'getAppInfo': 'allow',
+      'modifyNavStyle': 'allow',
+      'systemShare': 'deny',
+      'systemImagePick': 'deny',
+      'vibrate': 'deny',
+      'onBackPress': 'allow',
+      'navigateBack': 'allow'
+    }
+  }
+
+  private checkPermission(method: string): boolean {
+    const map: Record<string, string> = this.getPermissionMap()
+    return map[method] !== 'deny'
+  }
+
+  private handleGetVersion(callId: string): void {
+    const versionData: VersionData = { sdk: SDK_VERSION, container: SDK_VERSION, api: 1 }
+    this.callback(callId, { status: 'ok', code: 'OK', data: versionData as object })
+  }
+
+  private handleHasMethod(paramsStr: string, callId: string): void {
+    try {
+      const params: Record<string, string> = JSON.parse(paramsStr) as Record<string, string>
+      const name: string = params['name'] || ''
+      const knownMethods: string[] = ['getAppInfo', 'modifyNavStyle', 'systemShare', 'systemImagePick',
+        'vibrate', 'onBackPress', 'navigateBack', 'getVersion', 'hasMethod']
+      const resultData: HasMethodData = { available: knownMethods.indexOf(name) >= 0 }
+      this.callback(callId, { status: 'ok', code: 'OK', data: resultData as object })
+    } catch (e) {
+      this.callback(callId, { status: 'error', code: 'INVALID_PARAMS', message: '参数解析失败', error: 'JSON parse failed' })
+    }
   }
 
   private handleGetAppInfo(callId: string): void {
@@ -249,12 +334,13 @@ export class JSBridge {
         appVersionName: appVersionName,
         internet: internet,
         deviceBrand: deviceBrand,
-        deviceModel: deviceModel
+        deviceModel: deviceModel,
+        sdkVersion: '1.0.0'
       }
 
-      this.callback(callId, { status: 'ok', data: data as object })
+      this.callback(callId, { status: 'ok', code: 'OK', data: data as object })
     } catch (e) {
-      this.callback(callId, { status: 'error', error: 'getAppInfo failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '获取应用信息失败', error: 'getAppInfo failed' })
     }
   }
 
@@ -264,9 +350,9 @@ export class JSBridge {
       if (this.navChangeCallback) {
         this.navChangeCallback(params.style, params.title)
       }
-      this.callback(callId, { status: 'ok', data: null })
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
     } catch (e) {
-      this.callback(callId, { status: 'error', error: 'modifyNavStyle failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '修改导航样式失败', error: 'modifyNavStyle failed' })
     }
   }
 
@@ -331,7 +417,7 @@ export class JSBridge {
       this.doShare(sharedData, callId)
     } catch (e) {
       Logger.error('JSBridge', 'systemShare failed')
-      this.callback(callId, { status: 'error', error: 'systemShare failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '系统分享失败', error: 'systemShare failed' })
     }
   }
 
@@ -344,20 +430,19 @@ export class JSBridge {
         sharedToTarget = true
         const platform: string = result.targetAbilityInfo.name
         const shareResult: ShareResult = { platform: platform.length > 0 ? platform : 'unknown' }
-        this.callback(callId, { status: 'ok', data: shareResult as object })
+        this.callback(callId, { status: 'ok', code: 'OK', data: shareResult as object })
       })
 
       controller.on('dismiss', () => {
         if (!sharedToTarget) {
-          const shareResult: ShareResult = { platform: 'cancelled' }
-          this.callback(callId, { status: 'ok', data: shareResult as object })
+          this.callback(callId, { status: 'error', code: 'USER_CANCELLED', message: '用户取消分享', error: 'share cancelled by user' })
         }
       })
 
       controller.show(this.context, {})
     } catch (e) {
       Logger.error('JSBridge', 'doShare failed')
-      this.callback(callId, { status: 'error', error: 'systemShare failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '系统分享失败', error: 'systemShare failed' })
     }
   }
 
@@ -377,7 +462,7 @@ export class JSBridge {
 
         const processNext = (index: number): void => {
           if (index >= uris.length) {
-            this.callback(callId, { status: 'ok', data: photoItems as object })
+            this.callback(callId, { status: 'ok', code: 'OK', data: photoItems as object })
             return
           }
 
@@ -415,11 +500,11 @@ export class JSBridge {
         processNext(0)
       }).catch(() => {
         Logger.error('JSBridge', 'photoPicker select failed')
-        this.callback(callId, { status: 'error', error: 'imagePick cancelled or failed' })
+        this.callback(callId, { status: 'error', code: 'USER_CANCELLED', message: '用户取消选择', error: 'imagePick cancelled or failed' })
       })
     } catch (e) {
       Logger.error('JSBridge', 'systemImagePick failed')
-      this.callback(callId, { status: 'error', error: 'systemImagePick failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '图片选择失败', error: 'systemImagePick failed' })
     }
   }
 
@@ -435,7 +520,7 @@ export class JSBridge {
 
       const doVibrate = (): void => {
         if (remaining <= 0) {
-          this.callback(callId, { status: 'ok', data: null })
+          this.callback(callId, { status: 'ok', code: 'OK', data: null })
           return
         }
         try {
@@ -452,13 +537,13 @@ export class JSBridge {
         if (remaining > 0) {
           setTimeout(doVibrate, actualDuration + interval)
         } else {
-          this.callback(callId, { status: 'ok', data: null })
+          this.callback(callId, { status: 'ok', code: 'OK', data: null })
         }
       }
 
       doVibrate()
     } catch (e) {
-      this.callback(callId, { status: 'error', error: 'vibrate failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '振动失败', error: 'vibrate failed' })
     }
   }
 
@@ -482,9 +567,9 @@ export class JSBridge {
         this.backPressCallbackIds.push(callbackId)
       }
 
-      this.callback(callId, { status: 'ok', data: null })
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
     } catch (e) {
-      this.callback(callId, { status: 'error', error: 'onBackPress failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '返回拦截注册失败', error: 'onBackPress failed' })
     }
   }
 
@@ -493,9 +578,9 @@ export class JSBridge {
       if (this.navigateBackCallback) {
         this.navigateBackCallback()
       }
-      this.callback(callId, { status: 'ok', data: null })
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
     } catch (e) {
-      this.callback(callId, { status: 'error', error: 'navigateBack failed' })
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '返回操作失败', error: 'navigateBack failed' })
     }
   }
 }

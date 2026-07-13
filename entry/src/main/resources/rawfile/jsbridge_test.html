@@ -154,6 +154,44 @@
       <span id="webLeafStatus" class="status-badge status-loading">等待</span>
       <span style="font-size:13px; color:#64748B;">webLeaf SDK (Promise)</span>
     </div>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:6px;">
+      <button id="btnDebugToggle" class="btn" onclick="toggleDebugMode()" style="font-size:11px; min-width:auto; padding:0 10px; height:28px;">🐛 调试模式: 关</button>
+      <span style="font-size:12px; color:#64748B;">拦截所有 JSBridge 调用并打印到控制台</span>
+    </div>
+  </div>
+</div>
+
+<!-- Version Info -->
+<div class="section">
+  <div class="section-title">📋 SDK 版本</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">getVersion</div>
+        <div class="method-desc">获取 SDK、容器和 API 版本信息</div>
+      </div>
+      <button class="btn" id="btnGetVersion" onclick="callGetVersion()" style="font-size:11px; min-width:auto; padding:0 10px;">查询版本</button>
+    </div>
+    <div class="result-box" id="resultVersion"></div>
+  </div>
+</div>
+
+<!-- hasMethod -->
+<div class="section">
+  <div class="section-title">🔍 方法检测</div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">hasMethod</div>
+        <div class="method-desc">检查当前容器是否支持某个方法</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-secondary" onclick="callHasMethod('vibrate')" style="font-size:11px; min-width:auto; padding:0 10px;">vibrate</button>
+        <button class="btn btn-secondary" onclick="callHasMethod('systemShare')" style="font-size:11px; min-width:auto; padding:0 10px;">systemShare</button>
+        <button class="btn btn-secondary" onclick="callHasMethod('nonExistent')" style="font-size:11px; min-width:auto; padding:0 10px;">nonExistent</button>
+      </div>
+    </div>
+    <div class="result-box" id="resultHasMethod"></div>
   </div>
 </div>
 
@@ -625,6 +663,108 @@ function testDualTrack() {
   } catch(e) {
     track1Result = '❌ 异常: ' + e.message
     el.innerHTML = '<span class="label">双轨制测试</span>\nTrack 1: ' + track1Result
+  }
+}
+
+// ===================== 版本信息 & 方法检测 =====================
+
+function callGetVersion() {
+  showResult('resultVersion', { status: '查询中...' }, 'loading')
+  var el = document.getElementById('btnGetVersion')
+  if (el) el.disabled = true
+
+  if (hasWebLeaf()) {
+    window.webLeaf.getVersion().then(function(data) {
+      showResult('resultVersion', data, 'ok')
+    }).catch(function(err) {
+      showResult('resultVersion', { error: err.message, code: err.code }, 'error')
+    }).finally(function() {
+      if (el) el.disabled = false
+    })
+  } else if (hasJSBridge()) {
+    window.JSBridge.call('getVersion', {}, function(res) {
+      if (el) el.disabled = false
+      if (res && res.status === 'ok') {
+        showResult('resultVersion', res.data, 'ok')
+      } else {
+        showResult('resultVersion', { error: res && res.message || '获取版本失败' }, 'error')
+      }
+    })
+  } else {
+    if (el) el.disabled = false
+    showResult('resultVersion', { error: 'JSBridge 不可用' }, 'error')
+  }
+}
+
+function callHasMethod(name) {
+  showResult('resultHasMethod', { name: name, status: '查询中...' }, 'loading')
+
+  if (hasWebLeaf()) {
+    window.webLeaf.hasMethod(name).then(function(data) {
+      var available = data && data.available
+      showResult('resultHasMethod', { name: name, available: available }, 'ok')
+      showToast(name + ' 可用: ' + (available ? '✅ 是' : '❌ 否'))
+    }).catch(function(err) {
+      showResult('resultHasMethod', { name: name, error: err.message, code: err.code }, 'error')
+    })
+  } else if (hasJSBridge()) {
+    window.JSBridge.call('hasMethod', { name: name }, function(res) {
+      if (res && res.status === 'ok') {
+        var available = res.data && res.data.available
+        showResult('resultHasMethod', { name: name, available: available }, 'ok')
+        showToast(name + ' 可用: ' + (available ? '✅ 是' : '❌ 否'))
+      } else {
+        showResult('resultHasMethod', { name: name, error: res && res.message || '检测失败' }, 'error')
+      }
+    })
+  } else {
+    showResult('resultHasMethod', { name: name, error: 'JSBridge 不可用' }, 'error')
+  }
+}
+
+// ===================== 调试模式切换 =====================
+
+var debugModeEnabled = false
+
+function toggleDebugMode() {
+  debugModeEnabled = !debugModeEnabled
+  var btn = document.getElementById('btnDebugToggle')
+  if (debugModeEnabled) {
+    btn.textContent = '🐛 调试模式: 开'
+    btn.className = 'btn btn-warning'
+    btn.style.cssText = 'font-size:11px; min-width:auto; padding:0 10px; height:28px;'
+    showToast('调试模式已开启，打开控制台查看 JSBridge 日志')
+
+    if (window.JSBridge && window.JSBridge.call && !window.__webLeafDebug) {
+      window.__webLeafDebug = true
+      var origCall = window.JSBridge.call
+      window.JSBridge.call = function(m, p, cb) {
+        console.log('[JSBridge] >>', m, JSON.stringify(p))
+        origCall.call(window.JSBridge, m, p, function(res) {
+          console.log('[JSBridge] <<', m, JSON.stringify(res))
+          if (cb) cb(res)
+        })
+      }
+    }
+
+    // 添加 ?wldebug=1 到 URL 以触发原生调试模式
+    if (!window.location.search.includes('wldebug=1')) {
+      var newUrl = window.location.href
+      newUrl += (newUrl.indexOf('?') === -1 ? '?' : '&') + 'wldebug=1'
+      window.history.replaceState({}, '', newUrl)
+    }
+  } else {
+    btn.textContent = '🐛 调试模式: 关'
+    btn.className = 'btn'
+    btn.style.cssText = 'font-size:11px; min-width:auto; padding:0 10px; height:28px; background: #F1F5F9; color: #475569;'
+    showToast('调试模式已关闭')
+
+    // 移除 ?wldebug=1
+    if (window.location.search.includes('wldebug=1')) {
+      var url = window.location.href
+      url = url.replace(/([?&])wldebug=1&?/, '$1').replace(/\?$/, '')
+      window.history.replaceState({}, '', url)
+    }
   }
 }
 

@@ -7,9 +7,12 @@
  * Backward compatible — existing window.JSBridge / window.JSBridgeHandle
  * code continues to work unchanged.
  *
+ * v1.0.0 — getVersion, hasMethod, timeout, callback cap, iframe security
+ *
  * Usage:
  *   window.webLeaf.getAppInfo().then(data => { ... })
  *   window.webLeaf.vibrate({ duration: 200, count: 1 }).then(() => { ... })
+ *   window.webLeaf.getVersion().then(v => console.log(v))
  */
 
 (function() {
@@ -21,9 +24,18 @@
     window.JSBridge = {
       _callbacks: {},
       _callId: 0,
+      MAX_CALLBACKS: 500,
       call: function(method, params, callback) {
         var id = String(++this._callId);
         if (typeof callback === 'function') {
+          // Callback leak protection: cap at MAX_CALLBACKS, evict oldest 100
+          var keys = Object.keys(this._callbacks);
+          if (keys.length >= this.MAX_CALLBACKS) {
+            var toRemove = keys.slice(0, 100);
+            for (var i = 0; i < toRemove.length; i++) {
+              delete this._callbacks[toRemove[i]];
+            }
+          }
           this._callbacks[id] = callback;
         }
         params = params || {};
@@ -48,18 +60,39 @@
   // Promise-based webLeaf SDK
   window.webLeaf = {
     _call: function(method, params) {
+      var TIMEOUT_MS = 30000;
       return new Promise(function(resolve, reject) {
+        var timeoutId = setTimeout(function() {
+          var err = new Error('调用超时');
+          err.code = 'TIMEOUT';
+          reject(err);
+        }, TIMEOUT_MS);
         window.JSBridge.call(method, params || {}, function(response) {
+          clearTimeout(timeoutId);
           if (response && response.status === 'ok') {
             resolve(response.data || null);
           } else {
-            reject(new Error((response && response.error) || 'Unknown error'));
+            var errCode = (response && response.code) || 'UNKNOWN';
+            var errMsg = (response && response.message) || (response && response.error) || '未知错误';
+            var err = new Error(errMsg);
+            err.code = errCode;
+            reject(err);
           }
         });
       });
     },
 
-    /** Get application and device information */
+    /** Get SDK/container version info */
+    getVersion: function() {
+      return window.webLeaf._call('getVersion');
+    },
+
+    /** Check if a method is available in current runtime */
+    hasMethod: function(name) {
+      return window.webLeaf._call('hasMethod', { name: name });
+    },
+
+    /** Get application and device information (response includes sdkVersion) */
     getAppInfo: function() {
       return window.webLeaf._call('getAppInfo');
     },
@@ -99,6 +132,18 @@
       return window.webLeaf._call(method, params || {});
     }
   };
+
+  // Iframe security: block JSBridge access in iframe context
+  try {
+    if (window !== window.top) {
+      delete window.JSBridgeHandle;
+      delete window.JSBridge;
+      delete window.webLeaf;
+      delete window.__JSBridgeCallback__;
+    }
+  } catch(e) {
+    // Cross-origin iframe: silently ignore (already blocked by same-origin policy)
+  }
 
   // Dispatch ready event for H5 readiness detection
   try {

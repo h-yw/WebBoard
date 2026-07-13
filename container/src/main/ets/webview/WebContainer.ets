@@ -1,7 +1,7 @@
 import { webview } from '@kit.ArkWeb'
 import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
-import { JSBridge, type JsProxyObject } from './JSBridge'
+import { JSBridge, type JsProxyObject, type SourceType } from './JSBridge'
 import { Logger } from '../common/Logger'
 import { WEBLEAF_SDK_SCRIPT } from './webleaf-sdk'
 import { WebContainerController } from './WebContainerController'
@@ -25,6 +25,7 @@ import { WebContainerController } from './WebContainerController'
 export struct WebContainer {
   @Prop src: string = ''
   @Prop appName: string = ''
+  @Prop debugEnabled: boolean = false
   @Link wcController: WebContainerController
   @State loadProgress: number = 0
   @State hasError: boolean = false
@@ -55,6 +56,15 @@ export struct WebContainer {
 
   // --- Lifecycle ---
 
+  onPageShow(): void {
+    const script: string = 'try { window.dispatchEvent(new CustomEvent("WebLeafForeground")); } catch(e) {}'
+    try {
+      this.controller.runJavaScript(script)
+    } catch (e) {
+      Logger.warn('WebContainer', 'push foreground event failed')
+    }
+  }
+
   aboutToAppear(): void {
     // Wire up the controller for back press delegation
     this.wcController.handleBackPress = (): boolean => {
@@ -69,6 +79,12 @@ export struct WebContainer {
   }
 
   aboutToDisappear(): void {
+    const bgScript: string = 'try { window.dispatchEvent(new CustomEvent("WebLeafBackground")); } catch(e) {}'
+    try {
+      this.controller.runJavaScript(bgScript)
+    } catch (e) {
+      Logger.warn('WebContainer', 'push background event failed')
+    }
     try {
       this.controller.clearHistory()
     } catch (e) {
@@ -104,6 +120,16 @@ export struct WebContainer {
     return this.src.startsWith('http://') || this.src.startsWith('https://')
   }
 
+  getSourceType(): SourceType {
+    if (this.src.startsWith('rawfile://')) {
+      return 'rawfile'
+    }
+    if (this.src.startsWith('http://') || this.src.startsWith('https://')) {
+      return 'url'
+    }
+    return 'file'
+  }
+
   // --- JSBridge setup ---
 
   private setupJSBridge(): void {
@@ -118,7 +144,7 @@ export struct WebContainer {
         return
       }
     }
-    this.jsBridge = new JSBridge(this.controller, this.context)
+    this.jsBridge = new JSBridge(this.controller, this.context, this.getSourceType())
     this.jsBridge.setNavChangeCallback((style: number, title?: string): void => {
       this.navStyle = style
       this.wcController.navStyle = style
@@ -264,6 +290,20 @@ export struct WebContainer {
                 // Auto-inject the window.webLeaf SDK
                 this.controller.runJavaScript(WEBLEAF_SDK_SCRIPT)
                 Logger.debug('WebContainer', 'webleaf SDK auto-injected via runJavaScript')
+                // Debug mode: wrap JSBridge.call with console logging
+                if (this.debugEnabled || this.src.includes('wldebug=1')) {
+                  const debugScript: string = `(function() {
+                    if (window.__webLeafDebug) return; window.__webLeafDebug = true;
+                    var origCall = window.JSBridge.call;
+                    window.JSBridge.call = function(m, p, cb) {
+                      console.log('[JSBridge] >>', m, JSON.stringify(p));
+                      // Use .call() to preserve 'this' reference to window.JSBridge
+                      origCall.call(window.JSBridge, m, p, function(res) { console.log('[JSBridge] <<', m, JSON.stringify(res)); if (cb) cb(res); });
+                    };
+                  })()`
+                  this.controller.runJavaScript(debugScript)
+                  Logger.debug('WebContainer', 'JSBridge debug mode enabled')
+                }
               } catch (e) {
                 Logger.warn('WebContainer', 'initJSBridge/runJavaScript failed')
               }
