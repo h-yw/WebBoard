@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>JSBridge 测试页</title>
+<!-- WebLeaf SDK 注入点：显式加载 Promise 桥接层 -->
+<script src="webleaf-sdk.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -146,8 +148,35 @@
   <div class="card">
     <div style="display:flex; align-items:center; gap:12px;">
       <span id="bridgeStatus" class="status-badge status-ready">就绪</span>
-      <span style="font-size:13px; color:#64748B;">JSBridge</span>
+      <span style="font-size:13px; color:#64748B;">JSBridge (回调)</span>
     </div>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:6px;">
+      <span id="webLeafStatus" class="status-badge status-loading">等待</span>
+      <span style="font-size:13px; color:#64748B;">webLeaf SDK (Promise)</span>
+    </div>
+  </div>
+</div>
+
+<!-- 0. webLeaf SDK 总览 -->
+<div class="section">
+  <div class="section-title">🌐 webLeaf SDK 双轨制总览</div>
+  <div class="card">
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px; background:#F8FAFC; border-radius:8px; padding:12px; border:1px solid #E2E8F0;">
+        <div style="font-size:13px; font-weight:600; color:#6366F1; margin-bottom:6px;">🔵 Track 1: 回调式 (旧)</div>
+        <code style="font-size:11px; color:#334155;">window.JSBridge.call(method, params, callback)</code>
+        <div style="font-size:11px; color:#94A3B8; margin-top:4px;">向下兼容，原有 H5 可用</div>
+      </div>
+      <div style="flex:1; min-width:200px; background:#F0FDF4; border-radius:8px; padding:12px; border:1px solid #BBF7D0;">
+        <div style="font-size:13px; font-weight:600; color:#16A34A; margin-bottom:6px;">🟢 Track 2: Promise (新)</div>
+        <code style="font-size:11px; color:#334155;">window.webLeaf.getAppInfo().then()</code>
+        <div style="font-size:11px; color:#94A3B8; margin-top:4px;">自动注入，推荐使用</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="testDualTrack()" style="width:100%;">🔬 双轨制对比测试（同时执行两种方式）</button>
+    </div>
+    <div class="result-box" id="resultDualTrack"></div>
   </div>
 </div>
 
@@ -160,7 +189,10 @@
         <div class="method-name">getAppInfo</div>
         <div class="method-desc">获取应用名称、版本、网络状态、设备信息</div>
       </div>
-      <button class="btn" id="btnAppInfo" onclick="callGetAppInfo()">获取信息</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-secondary" id="btnAppInfoOld" onclick="callGetAppInfo('old')" style="font-size:11px; min-width:auto; padding:0 10px;">回调</button>
+        <button class="btn" id="btnAppInfoNew" onclick="callGetAppInfo('new')" style="font-size:11px; min-width:auto; padding:0 10px;">Promise</button>
+      </div>
     </div>
     <div class="result-box" id="resultAppInfo"></div>
   </div>
@@ -291,7 +323,6 @@ function showResult(id, data, status) {
 function formatJSON(obj) {
   if (obj === null || obj === undefined) return '<span class="json-null">null</span>'
   const json = JSON.stringify(obj, null, 2)
-  // 简单语法高亮
   return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
     .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
@@ -312,39 +343,123 @@ function setBridgeStatus(text, className) {
   if (el) { el.textContent = text; el.className = 'status-badge ' + className }
 }
 
-function isLoading(text) {
-  return text + '...'
+function setWebLeafStatus(text, className) {
+  const el = document.getElementById('webLeafStatus')
+  if (el) { el.textContent = text; el.className = 'status-badge ' + className }
 }
 
-// ===================== JSBridge 调用 =====================
+function loadingBtn(id, disabled) {
+  const el = document.getElementById(id)
+  if (el) { el.disabled = disabled }
+}
 
-// 1. getAppInfo
-function callGetAppInfo() {
-  const btn = document.getElementById('btnAppInfo')
-  btn.textContent = isLoading('获取中')
-  btn.disabled = true
-  window.JSBridge.call('getAppInfo', {}, function(res) {
-    btn.textContent = '获取信息'
-    btn.disabled = false
-    showResult('resultAppInfo', res.data, res.status)
+// ===================== SDK 降级兼容层 =====================
+// 优先使用 webLeaf (Promise)，不存在则降级到 JSBridge.call() (回调)
+// 目的是页面在不依赖自动注入的情况下也能独立工作
+
+function hasWebLeaf() {
+  return typeof window.webLeaf !== 'undefined' && window.webLeaf !== null
+}
+
+function hasJSBridge() {
+  return typeof window.JSBridge !== 'undefined' && typeof window.JSBridge.call === 'function'
+}
+
+// 统一的 SDK 调用入口：尝试 webLeaf Promise → 降级 JSBridge 回调 → 转成 Promise
+function sdkCall(method, params) {
+  return new Promise(function(resolve, reject) {
+    if (hasWebLeaf()) {
+      // Track 2: webLeaf Promise 方式
+      try {
+        var result = window.webLeaf.call(method, params || {})
+        if (result && typeof result.then === 'function') {
+          result.then(resolve).catch(reject)
+        } else {
+          resolve(result)
+        }
+      } catch(e) {
+        reject(e)
+      }
+      return
+    }
+
+    if (hasJSBridge()) {
+      // Track 1: JSBridge 回调方式（降级）
+      window.JSBridge.call(method, params || {}, function(response) {
+        if (response && response.status === 'ok') {
+          resolve(response.data || null)
+        } else {
+          reject(new Error((response && response.error) || method + ' failed'))
+        }
+      })
+      return
+    }
+
+    reject(new Error('JSBridge not available'))
   })
+}
+
+// 快捷方法（保持与 webLeaf SDK 一致的命名）
+function sdkGetAppInfo() { return sdkCall('getAppInfo', {}) }
+function sdkModifyNavStyle(style, title) { return sdkCall('modifyNavStyle', { style: style, title: title }) }
+function sdkSystemShare(params) { return sdkCall('systemShare', params || {}) }
+function sdkSystemImagePick(params) { return sdkCall('systemImagePick', params || {}) }
+function sdkVibrate(params) { return sdkCall('vibrate', params || {}) }
+function sdkOnBackPress() { return sdkCall('onBackPress', { callbackId: 'sdk_' + Date.now() }) }
+function sdkNavigateBack() { return sdkCall('navigateBack', {}) }
+
+// ===================== Track 1: 回调式 JSBridge (旧) =====================
+
+function callGetAppInfo(track) {
+  if (track === 'old' || !track) {
+    // Track 1: 回调式
+    if (!hasJSBridge()) { showResult('resultAppInfo', { error: 'JSBridge 未就绪' }, 'error'); return }
+    window.JSBridge.call('getAppInfo', {}, function(res) {
+      showResult('resultAppInfo', { __track__: 'Track 1 (回调)', sdk: window.webLeaf ? 'webLeaf 已注入' : 'webLeaf 未注入', ...res.data }, res.status)
+    })
+  } else {
+    // Track 2: Promise (通过降级层)
+    sdkGetAppInfo().then(function(data) {
+      showResult('resultAppInfo', { __track__: hasWebLeaf() ? 'Track 2 (webLeaf Promise)' : 'Track 2 降级 (JSBridge 回调)', ...data }, 'ok')
+    }).catch(function(err) {
+      showResult('resultAppInfo', { __track__: 'Track 2', error: err.message }, 'error')
+    })
+  }
 }
 
 // 2. modifyNavStyle
+var modifyNavStyleCount = 0
 function callModifyNavStyle(style, title) {
-  const params = { style: style }
+  var params = { style: style }
   if (title) params.title = title
-  window.JSBridge.call('modifyNavStyle', params, function(res) {
-    const statusMap = { 0: '隐藏导航', 1: '透明导航', '-1': '自定义标题' }
-    showToast('导航已切换: ' + (statusMap[String(style)] || 'style=' + style) + (title ? ' (' + title + ')' : ''))
-    showResult('resultNavStyle', { style: style, title: title || null, nativeStatus: res.status }, res.status)
-  })
+  
+  // 交替使用 Track 1 和 Track 2 来演示双轨制
+  var useTrack2 = (++modifyNavStyleCount % 2 === 0)
+  
+  if (useTrack2) {
+    sdkModifyNavStyle(style, title).then(function() {
+      showToast('导航已切换（Track 2 — ' + (hasWebLeaf() ? 'webLeaf' : '降级JSBridge') + '）')
+    }).catch(function(err) {
+      showToast('导航失败: ' + err.message)
+    })
+  } else {
+    if (!hasJSBridge()) { showToast('JSBridge 未就绪'); return }
+    window.JSBridge.call('modifyNavStyle', params, function(res) {
+      showToast('导航已切换（Track 1 回调）')
+    })
+  }
+  var statusMap = { 0: '隐藏导航', 1: '透明导航', '-1': '自定义标题' }
+  showResult('resultNavStyle', { 
+    style: style, 
+    title: title || null, 
+    track: useTrack2 ? 'Track 2 (Promise)' : 'Track 1 (回调)' 
+  }, 'ok')
 }
 
 // 3. systemShare
 var lastPickedImage = ''
 function callSystemShare(type) {
-  const params = {
+  var params = {
     content: '来自浮叶 WebLeaf 的分享测试',
     title: '浮叶 WebLeaf',
     url: '',
@@ -362,64 +477,70 @@ function callSystemShare(type) {
       return
     }
   }
-  window.JSBridge.call('systemShare', params, function(res) {
-    showResult('resultShare', res.data || { message: '分享面板已关闭' }, res.status)
+  // 通过降级层（优先 webLeaf Promise，降级 JSBridge 回调）
+  sdkSystemShare(params).then(function(data) {
+    showResult('resultShare', data || { message: '分享面板已关闭', track: hasWebLeaf() ? 'webLeaf Promise' : 'JSBridge 回调降级' }, 'ok')
+  }).catch(function(err) {
+    showResult('resultShare', { error: err.message }, 'error')
   })
 }
 
 // 4. systemImagePick
 function callImagePick() {
-  window.JSBridge.call('systemImagePick', { count: 3 }, function(res) {
-    showResult('resultImagePick', res.data, res.status)
-    if (res.status === 'ok' && res.data && res.data.length > 0) {
-      const container = document.getElementById('imagePreview')
+  // 通过降级层
+  sdkSystemImagePick({ count: 3 }).then(function(data) {
+    showResult('resultImagePick', data, 'ok')
+    if (data && data.length > 0) {
+      var container = document.getElementById('imagePreview')
       container.innerHTML = ''
-      for (let i = 0; i < res.data.length; i++) {
-        const item = res.data[i]
+      for (var i = 0; i < data.length; i++) {
+        var item = data[i]
         if (item.base64) {
-          const img = document.createElement('img')
+          var img = document.createElement('img')
           img.src = 'data:image/png;base64,' + item.base64
           img.style.cssText = 'width:80px;height:80px;border-radius:8px;object-fit:cover;border:1px solid #E2E8F0;'
           container.appendChild(img)
         }
       }
-      // 保存第一张图片路径用于分享
-      if (res.data[0].path) {
-        lastPickedImage = res.data[0].path
-        document.getElementById('btnShareImage').disabled = false
-        document.getElementById('btnShareImage').textContent = '分享图片'
-        showToast('已选择图片，可点击分享图片')
+      if (data[0].path) {
+        lastPickedImage = data[0].path
+        showToast('已选择 ' + data.length + ' 张图片')
       }
     }
+  }).catch(function(err) {
+    showResult('resultImagePick', { error: err.message }, 'error')
   })
 }
 
 // 5. vibrate
 function callVibrate(duration, count) {
-  window.JSBridge.call('vibrate', { duration: duration, count: count }, function(res) {
+  // 通过降级层
+  sdkVibrate({ duration: duration, count: count }).then(function() {
     showToast('震动 ' + count + ' 次，每次 ' + duration + 'ms')
-    showResult('resultVibrate', { duration: duration, count: count, status: res.status }, res.status)
+    showResult('resultVibrate', { duration: duration, count: count, status: 'ok' }, 'ok')
+  }).catch(function(err) {
+    showResult('resultVibrate', { error: err.message }, 'error')
   })
 }
 
-// 网络图片分享
+// 网络图片分享 (Track 2 Promise)
 function shareNetworkImage() {
-  const imgUrl = 'https://developer.huawei.com/allianceCmsResource/resource/HUAWEI_Developer_VUE/images/0618xiaoyi/2.png'
-  window.JSBridge.call('systemShare', {
-    title: '网络图片分享',
-    image: imgUrl
-  }, function(res) {
-    showResult('resultShare', res.data || { message: '分享面板已关闭，网络图片已自动下载后分享' }, res.status)
-    if (res.status === 'ok') {
-      showToast('网络图片已下载并分享')
-    }
+  var imgUrl = 'https://res.vmallres.com/cloud-bundles/HUAWEI_Mobile_Services/health/img/index_banner_6.jpg'
+  sdkSystemShare({ title: '网络图片分享', image: imgUrl }).then(function(data) {
+    showResult('resultShare', data || { message: '网络图片已下载后分享' }, 'ok')
+    showToast('网络图片已下载并分享')
+  }).catch(function(err) {
+    showResult('resultShare', { error: err.message }, 'error')
   })
 }
 
-// 7. navigateBack - 自定义返回
+// 7. navigateBack
 function callNavigateBack() {
-  window.JSBridge.call('navigateBack', {}, function(res) {
-    showResult('resultNavigateBack', { status: res.status, message: '路由返回已触发' }, res.status)
+  // 通过降级层
+  sdkNavigateBack().then(function() {
+    showToast('路由返回已触发')
+  }).catch(function(err) {
+    showToast('返回失败: ' + err.message)
   })
 }
 
@@ -427,49 +548,153 @@ function callNavigateBack() {
 var backPressRegistered = false
 function registerBackPress() {
   if (backPressRegistered) {
-    showToast('已处于拦截模式')
+    showToast('已处于拦截模式，按系统返回键测试')
     return
   }
-  window.JSBridge.call('onBackPress', { callbackId: 'back_test_001' }, function(res) {
-    if (res.status === 'ok') {
-      backPressRegistered = true
-      const btn = document.getElementById('btnRegisterBack')
-      btn.textContent = '🛑 已拦截'
-      btn.className = 'btn'
-      btn.style.background = '#EF4444'
-      document.getElementById('backStatus').innerHTML = '● <strong>已注册返回拦截</strong> — 现在按系统返回键试试'
-      showResult('resultBackPress', { message: '返回拦截已注册。按系统返回键时，H5 将收到回调。返回 0=允许返回，非 0=阻止返回' }, 'ok')
-      showToast('返回拦截已激活')
-    }
+  // 通过降级层（优先 webLeaf Promise，降级 JSBridge 回调）
+  sdkOnBackPress().then(function() {
+    backPressRegistered = true
+    var btn = document.getElementById('btnRegisterBack')
+    btn.textContent = '🛑 已拦截'
+    btn.className = 'btn'
+    btn.style.background = '#EF4444'
+    document.getElementById('backStatus').innerHTML = '● <strong>已注册返回拦截</strong> — 按系统返回键，将弹出确认弹窗'
+    showResult('resultBackPress', { 
+      message: '返回拦截已注册。按系统返回键时弹出确认弹窗，点"确定返回"则退出当前页面',
+      track: hasWebLeaf() ? 'webLeaf Promise' : 'JSBridge 回调降级'
+    }, 'ok')
+    showToast('返回拦截已激活，现在按返回键测试')
+  }).catch(function(err) {
+    showResult('resultBackPress', { error: err.message }, 'error')
   })
 }
 
-// ===================== 初始化 =====================
-function init() {
-  // 检测 JSBridge 是否可用
-  if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
-    setBridgeStatus('✅ 已连接', 'status-done')
-    showToast('JSBridge 已就绪')
-    // 自动获取应用信息
-    setTimeout(callGetAppInfo, 500)
-  } else {
-    setBridgeStatus('⏳ 等待连接', 'status-loading')
-    // 轮询等待 JSBridge 初始化
-    var retryCount = 0
-    var timer = setInterval(function() {
-      retryCount++
-      if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
-        setBridgeStatus('✅ 已连接', 'status-done')
-        showToast('JSBridge 已就绪')
-        clearInterval(timer)
-        setTimeout(callGetAppInfo, 500)
-      } else if (retryCount > 20) {
-        setBridgeStatus('❌ 连接超时', 'status-error')
-        document.querySelector('.subtitle').textContent += ' — JSBridge 初始化超时，请刷新页面重试'
-        clearInterval(timer)
-      }
-    }, 500)
+// ===================== Track 2: 专用 webLeaf 测试区 =====================
+
+function callWebLeaf(method) {
+  var id = 'resultWebLeaf' + method.charAt(0).toUpperCase() + method.slice(1)
+  showResult(id, { status: '调用中...' }, 'loading')
+  
+  sdkCall(method, {}).then(function(data) {
+    showResult(id, { track: hasWebLeaf() ? 'webLeaf SDK' : 'JSBridge 回调降级', ...(data || {}) }, 'ok')
+  }).catch(function(err) {
+    showResult(id, { track: hasWebLeaf() ? 'webLeaf SDK' : 'JSBridge 回调降级', error: err.message }, 'error')
+  })
+}
+
+// ===================== 双轨制对比测试 =====================
+
+function testDualTrack() {
+  var el = document.getElementById('resultDualTrack')
+  el.className = 'result-box show'
+  el.innerHTML = '<span class="label">🔬 双轨制对比测试中...</span>\n'
+
+  var track1Result = '❌ 未执行'
+  var track2Result = '❌ 未执行'
+  var webLeafInjected = hasWebLeaf() ? '✅ 已注入' : '❌ 未注入'
+
+  // Track 1: 回调式
+  try {
+    if (!hasJSBridge()) {
+      track1Result = '❌ JSBridge 不可用'
+      el.innerHTML = '<span class="label">🔬 双轨制对比测试</span>\n' +
+        '<span class="json-key">"webLeaf SDK"</span>: <span class="json-string">"' + webLeafInjected + '"</span>\n' +
+        '<span class="json-key">"Track 1 (JSBridge 回调)"</span>: <span class="json-string">"' + track1Result + '"</span>\n'
+      return
+    }
+    window.JSBridge.call('getAppInfo', {}, function(res) {
+      track1Result = (res && res.status === 'ok') ? '✅ 成功' : '❌ 失败'
+
+      // Track 2: Promise（通过降级层，不依赖 webLeaf 是否注入）
+      sdkGetAppInfo().then(function() {
+        track2Result = '✅ 成功'
+      }).catch(function() {
+        track2Result = '❌ 失败'
+      }).finally(function() {
+        el.innerHTML =
+          '<span class="label">🔬 双轨制对比测试结果</span>\n\n' +
+          '<span class="json-key">"webLeaf SDK"</span>: <span class="json-string">"' + webLeafInjected + '"</span>\n' +
+          '<span class="json-key">"Track 1 (JSBridge 回调)"</span>: <span class="json-string">"' + track1Result + '"</span>\n' +
+          '<span class="json-key">"Track 2 (降级层 Promise)"</span>: <span class="json-string">"' + track2Result + '"</span>\n' +
+          '\n<span class="label">结论:</span> ' +
+          (track1Result === '✅ 成功' && track2Result === '✅ 成功'
+            ? '✅ 双轨制运行正常（' + (hasWebLeaf() ? 'webLeaf SDK 已注入' : '通过 JSBridge 回调降级') + '）'
+            : '❌ 存在问题')
+      })
+    })
+  } catch(e) {
+    track1Result = '❌ 异常: ' + e.message
+    el.innerHTML = '<span class="label">双轨制测试</span>\nTrack 1: ' + track1Result
   }
+}
+
+// ===================== 初始化 =====================
+
+function sdkReady() {
+  setBridgeStatus('✅ 已连接', 'status-done')
+  setWebLeafStatus('✅ 已就绪', 'status-done')
+  showToast('JSBridge + webLeaf 已就绪')
+  setTimeout(callGetAppInfo, 500)
+}
+
+function init() {
+  // 1. 先检测 webLeaf (Track 2, Promise API)
+  if (typeof window.webLeaf !== 'undefined' && typeof window.webLeaf.getAppInfo === 'function') {
+    sdkReady()
+    return
+  }
+  
+  // 2. 再检测 JSBridge (Track 1, 回调 API)
+  if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
+    // webLeaf 可能即将注入，稍等一会儿
+    setWebLeafStatus('⏳ 等待 webLeaf', 'status-loading')
+    var waitCount = 0
+    var waitTimer = setInterval(function() {
+      waitCount++
+      if (typeof window.webLeaf !== 'undefined') {
+        clearInterval(waitTimer)
+        sdkReady()
+      } else if (waitCount > 10) {
+        setWebLeafStatus('❌ 未注入', 'status-error')
+        setBridgeStatus('✅ 已连接', 'status-done')
+        showToast('JSBridge 已就绪（webLeaf SDK 未注入）')
+        setTimeout(callGetAppInfo, 500)
+      }
+    }, 200)
+    return
+  }
+  
+  // 3. 都未就绪，轮询等待
+  setBridgeStatus('⏳ 等待连接', 'status-loading')
+  setWebLeafStatus('⏳ 等待连接', 'status-loading')
+  var retryCount = 0
+  var timer = setInterval(function() {
+    retryCount++
+    if (typeof window.webLeaf !== 'undefined') {
+      clearInterval(timer)
+      sdkReady()
+      return
+    }
+    if (typeof window.JSBridge !== 'undefined' && window.JSBridge.call) {
+      clearInterval(timer)
+      setBridgeStatus('✅ 已连接', 'status-done')
+      setWebLeafStatus('❌ 未注入', 'status-error')
+      showToast('JSBridge 已就绪（webLeaf SDK 未注入）')
+      setTimeout(callGetAppInfo, 500)
+      return
+    }
+    if (retryCount > 20) {
+      clearInterval(timer)
+      setBridgeStatus('❌ 连接超时', 'status-error')
+      setWebLeafStatus('❌ 连接超时', 'status-error')
+      document.querySelector('.subtitle').textContent += ' — JSBridge 初始化超时，请刷新页面重试'
+    }
+  }, 500)
+  
+  // 也监听 WebLeafReady 事件（更快的检测方式）
+  window.addEventListener('WebLeafReady', function() {
+    sdkReady()
+  })
 }
 
 // 页面加载完成后初始化
