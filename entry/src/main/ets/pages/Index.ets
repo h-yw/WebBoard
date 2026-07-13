@@ -214,16 +214,22 @@ export struct Index {
   }
 
   preloadRecentApps(): void {
-    // Tracking-based preloading: record most recently accessed apps.
-    // The WebPreloader maintains an LRU list that ViewerPage uses
-    // for access tracking. Future platform-level preloading can
-    // be added here when ArkUI supports offscreen Web rendering.
-    const preloader = WebPreloader.getInstance()
-    const recentKeys = preloader.getRecentKeys()
-    // Currently a no-op: all preload preparation is done lazily
-    // when ViewerPage calls recordAccess() during aboutToAppear.
-    // This method is kept as an extension point for future
-    // WebView pre-warming when the platform provides such capability.
+    // Idle preheat: preload the top 2 most-used applications
+    // After the list is shown, wait 2s then pre-create WebviewControllers
+    // for the most recently used apps to speed up subsequent launches.
+    setTimeout(() => {
+      const preloader = WebPreloader.getInstance()
+      const recentKeys = preloader.getRecentKeys()
+      if (recentKeys.length === 0) {
+        return
+      }
+      // Preload up to 2 most recent apps
+      const count = Math.min(2, recentKeys.length)
+      for (let i = 0; i < count; i++) {
+        preloader.preload(recentKeys[i])
+      }
+      Logger.debug('Index', 'idle preheat: preloaded ' + count + ' controllers')
+    }, 2000)
   }
 
   getInitial(name: string): string {

@@ -26,6 +26,7 @@ export struct WebContainer {
   @Prop src: string = ''
   @Prop appName: string = ''
   @Prop debugEnabled: boolean = false
+  @Prop preloadController?: webview.WebviewController
   @Link wcController: WebContainerController
   @State loadProgress: number = 0
   @State hasError: boolean = false
@@ -66,6 +67,10 @@ export struct WebContainer {
   }
 
   aboutToAppear(): void {
+    // Use pre-created controller from preheating pool if available
+    if (this.preloadController) {
+      this.controller = this.preloadController
+    }
     // Wire up the controller for back press delegation
     this.wcController.handleBackPress = (): boolean => {
       return this.handleBackPress()

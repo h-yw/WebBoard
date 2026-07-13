@@ -1,3 +1,4 @@
+import { webview } from '@kit.ArkWeb'
 import { WebContainer, WebContainerController, WebPreloader, Logger } from 'container'
 
 interface ViewerParam {
@@ -12,6 +13,7 @@ export struct ViewerPage {
   @State wcController: WebContainerController = new WebContainerController()
   private preloader: WebPreloader = WebPreloader.getInstance()
   private navPathStack: NavPathStack | undefined = undefined
+  private preloadController: webview.WebviewController | undefined = undefined
 
   aboutToAppear(): void {
     const info = this.queryNavigationInfo()
@@ -30,6 +32,16 @@ export struct ViewerPage {
     }
 
     this.parseNavParams()
+
+    // Check for preheated controller from the preheating pool
+    if (this.entryHtml.length > 0) {
+      const preloader = WebPreloader.getInstance()
+      const taken: webview.WebviewController | null = preloader.takeController(this.entryHtml)
+      if (taken) {
+        this.preloadController = taken
+        Logger.debug('ViewerPage', 'using preheated controller for: ' + this.entryHtml)
+      }
+    }
 
     if (this.entryHtml.length > 0) {
       this.preloader.recordAccess(this.entryHtml)
@@ -83,7 +95,8 @@ export struct ViewerPage {
       WebContainer({
         src: this.entryHtml,
         appName: this.appName,
-        wcController: $wcController
+        wcController: $wcController,
+        preloadController: this.preloadController
       })
     }
     .title(this.getNavTitle(), {
