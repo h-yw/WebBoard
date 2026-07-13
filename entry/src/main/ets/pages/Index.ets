@@ -155,7 +155,9 @@ export struct Index {
   async loadApps(): Promise<void> {
     if (this.dbMgr) {
       this.appList = await this.dbMgr.getAllApps()
-      this.dataSource = new AppDataSource()
+      // Reuse the same dataSource instance — LazyForEach is bound to it via
+      // registerDataChangeListener. Creating new instances loses the listener
+      // and breaks UI refresh for all operations (add, edit, delete, search).
       this.dataSource.setApps(this.getFilteredApps())
     }
   }
@@ -331,7 +333,6 @@ export struct Index {
         .layoutWeight(1)
         .onChange((value: string) => {
           this.searchKeyword = value
-          this.dataSource = new AppDataSource()
           this.dataSource.setApps(this.getFilteredApps())
         })
     }
@@ -657,7 +658,7 @@ export struct Index {
                     GridItem() {
                       this.GridCardItem(item)
                     }
-                  }, (item: WebAppItem) => item.id)
+                  }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri)
                 }
                 .cachedCount(10)
                 .columnsTemplate('1fr 1fr')
@@ -676,7 +677,7 @@ export struct Index {
                   ListItem() {
                     this.CardItem(item)
                   }
-                }, (item: WebAppItem) => item.id)
+                }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri)
               }
               .cachedCount(10)
               .width('100%')

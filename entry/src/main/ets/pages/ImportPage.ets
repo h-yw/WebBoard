@@ -6,7 +6,6 @@ import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType, SourceType } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
 import { EventArg, eventEmitter } from '../common/EventEmitter'
-import { JSON } from '@kit.ArkTS'
 
 @Component
 export struct ImportPage {
@@ -24,7 +23,9 @@ export struct ImportPage {
   private navPathStack: NavPathStack | undefined = undefined
 
   aboutToAppear(): void {
-
+    this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    const info = this.queryNavigationInfo()
+    this.navPathStack = info?.pathStack
   }
 
   getInitial(): string {
@@ -178,6 +179,7 @@ export struct ImportPage {
 
       Toast.show('导入成功')
       eventEmitter.emit("item:add", Object({item: item.id}) as EventArg)
+      AppStorage.Set<number>('dataRefreshTick', Date.now())
       this.navPathStack?.pop()
     } catch (e) {
       const err = e as Error
