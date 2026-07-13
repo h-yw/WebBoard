@@ -46,7 +46,7 @@ struct SplashPage {
       this.progressOpacity = 1
     })
 
-    // ④ 进度条匀速推进（30ms 间隔，共 2.5s）
+    // ④ 进度条匀速推进（50ms 间隔）
     let p = 0
     this.progressTimerId = setInterval(() => {
       p += 2
@@ -115,7 +115,7 @@ struct SplashPage {
           .scale({ x: this.sealScale, y: this.sealScale })
           .shadow({
             radius: 12,
-            color: '#2E1065',
+            color: $r('app.color.app_splash_shadow'),
             offsetX: 0,
             offsetY: 4
           })
@@ -125,11 +125,11 @@ struct SplashPage {
           Text('浮叶')
             .fontSize(36)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
 
           Text('WebLeaf')
             .fontSize(15)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .fontWeight(FontWeight.Lighter)
             .opacity(0.7)
         }
@@ -147,7 +147,7 @@ struct SplashPage {
               .width(160)
               .height(3)
               .borderRadius(1.5)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(Color.White)
               .opacity(0.25)
 
             // 进度填充
@@ -155,7 +155,7 @@ struct SplashPage {
               .width(160 * (this.progress / 100))
               .height(3)
               .borderRadius(1.5)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor(Color.White)
           }
           .width(160)
           .height(3)
@@ -167,11 +167,11 @@ struct SplashPage {
         // 跳过按钮
         Text('跳过')
           .fontSize(13)
-          .fontColor('#FFFFFF')
+          .fontColor(Color.White)
           .opacity(0.6)
           .padding({ left: 20, right: 20, top: 6, bottom: 6 })
           .borderRadius(14)
-          .border({ width: 1, color: '#FFFFFF' })
+          .border({ width: 1, color: Color.White })
           .onClick(() => {
             this.goHome()
           })

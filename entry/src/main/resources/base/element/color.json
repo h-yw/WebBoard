@@ -67,6 +67,63 @@
     {
       "name": "app_info",
       "value": "#64748B"
+    },
+      {
+      "name": "app_gradient_start",
+      "value": "#6366F1"
+    },
+    {
+      "name": "app_gradient_end",
+      "value": "#8B5CF6"
+    },
+    {
+      "name": "app_share_card_bg",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "app_splash_bg",
+      "value": "#6366F1"
+    },
+    {
+      "name": "app_error_bg",
+      "value": "#FEF2F2"
+    },
+    {
+      "name": "app_success_bg",
+      "value": "#F0FDF4"
+    },
+    {
+      "name": "app_white",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "app_splash_shadow",
+      "value": "#2E1065"
+    },
+    {
+      "name": "app_share_card_text",
+      "value": "#0F172A"
+    },
+    {
+      "name": "app_share_card_desc",
+      "value": "#64748B"
+    },
+    {
+      "name": "app_share_card_brand",
+      "value": "#6366F1"
+    },
+    {
+      "name": "app_share_card_footer",
+      "value": "#94A3B8"
+    },
+    {
+      "name": "app_qr_code",
+      "value": "#1E293B"
+    },
+    {
+      "name": "app_qr_label",
+      "value": "#CBD5E1"
     }
   ]
+}
 }

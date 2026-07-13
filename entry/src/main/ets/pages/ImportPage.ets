@@ -6,6 +6,7 @@ import { WorkDirectory } from '../util/WorkDirectory'
 import { LogoType, SourceType } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
 import { EventArg, eventEmitter } from '../common/EventEmitter'
+import { JSON } from '@kit.ArkTS'
 
 @Component
 export struct ImportPage {
@@ -23,31 +24,7 @@ export struct ImportPage {
   private navPathStack: NavPathStack | undefined = undefined
 
   aboutToAppear(): void {
-    this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    const info = this.queryNavigationInfo()
-    this.navPathStack = info?.pathStack
-    // 检查扫码传参
-    if (this.navPathStack) {
-      const scanParams: object[] = this.navPathStack.getParamByName('ImportPage') as object[]
-      if (scanParams && scanParams.length > 0) {
-        const paramRecord: Record<string, string> = scanParams[0] as Record<string, string>
-        const scanUrl: string = paramRecord['scanUrl'] || ''
-        const scanName: string = paramRecord['scanName'] || ''
-        const scanDesc: string = paramRecord['scanDesc'] || ''
-        if (scanUrl.length > 0) {
-          this.urlInput = scanUrl
-          this.selectedFileUri = scanUrl
-          this.selectedFileName = scanName.length > 0 ? scanName : 'scan_import'
-          this.importMode = 'url'
-          if (scanName.length > 0) {
-            this.appName = scanName
-          }
-          if (scanDesc.length > 0) {
-            this.appDescription = scanDesc
-          }
-        }
-      }
-    }
+
   }
 
   getInitial(): string {
@@ -208,6 +185,26 @@ export struct ImportPage {
     }
   }
 
+  scanResult(paramRecord:object){
+    if (paramRecord) {
+      const scanUrl: string = paramRecord['scanUrl'] || ''
+      const scanName: string = paramRecord['scanName'] || ''
+      const scanDesc: string = paramRecord['scanDesc'] || ''
+      if (scanUrl.length > 0) {
+        this.urlInput = scanUrl
+        this.selectedFileUri = scanUrl
+        this.selectedFileName = scanName.length > 0 ? scanName : 'scan_import'
+        this.importMode = 'url'
+        if (scanName.length > 0) {
+          this.appName = scanName
+        }
+        if (scanDesc.length > 0) {
+          this.appDescription = scanDesc
+        }
+      }
+    }
+  }
+
   @Builder
   SectionTitle(title: string) {
     Text(title)
@@ -242,6 +239,9 @@ export struct ImportPage {
                   .layoutWeight(1)
                 }
                 .width('100%')
+                .onClick(()=>{
+                  this.pickHtmlFile()
+                })
 
                 if (this.importMode === 'file' && this.selectedFileName.length > 0) {
                   Divider()
@@ -378,7 +378,7 @@ export struct ImportPage {
               .width('90%')
               .padding(10)
               .borderRadius(8)
-              .backgroundColor('#FEF2F2')
+              .backgroundColor($r('app.color.app_error_bg'))
             }
 
             if (this.importMode !== 'none') {
@@ -446,7 +446,7 @@ export struct ImportPage {
                       .borderRadius(12)
                       .linearGradient({
                         angle: 135,
-                        colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+                        colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
                       })
                       .alignContent(Alignment.Center)
                     }
@@ -512,5 +512,11 @@ export struct ImportPage {
       .transition(TransitionEffect.opacity(0.5).animation({ duration: 300, curve: Curve.EaseInOut }))
     }
     .title('导入')
+    .onReady((ctx)=>{
+      const param = ctx.pathInfo.param as object
+      this.navPathStack = ctx.pathStack
+      this.scanResult(param)
+    })
+
   }
 }

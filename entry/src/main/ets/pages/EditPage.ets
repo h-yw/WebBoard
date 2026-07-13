@@ -289,7 +289,7 @@ export struct EditPage {
                   .borderRadius(14)
                   .linearGradient({
                     angle: 135,
-                    colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+                    colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
                   })
                   .alignContent(Alignment.Center)
                 }
@@ -364,8 +364,8 @@ export struct EditPage {
               .width('100%')
               .padding(12)
               .borderRadius(8)
-              .backgroundColor(this.statusMessage.includes('失败') ? '#FEF2F2' :
-                this.statusMessage.includes('成功') ? '#F0FDF4' : $r('app.color.app_card_bg'))
+              .backgroundColor(this.statusMessage.includes('失败') ? $r('app.color.app_error_bg') :
+                this.statusMessage.includes('成功') ? $r('app.color.app_success_bg') : $r('app.color.app_card_bg'))
             }
 
             // 保存按钮

@@ -31,7 +31,9 @@ export class Loading {
     loadingMessage = message ?? '';
     try {
       promptAction.openCustomDialog({
-        builder: wrapBuilder(LoadingContentBuilder),
+        builder: (): void => {
+          LoadingContentBuilder()
+        },
         customStyle: false,
         autoCancel: false
       }).then((id: number) => {

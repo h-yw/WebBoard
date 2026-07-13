@@ -146,31 +146,6 @@ export struct ViewerPage {
     })
   }
 
-  private handleBackPress(): boolean {
-    // 1. Web 内部历史回退
-    try {
-      if (this.controller.accessBackward()) {
-        this.controller.backward()
-        return true
-      }
-    } catch (e) {
-      Logger.warn('ViewerPage', 'accessBackward failed')
-    }
-
-    // 2. JSBridge 返回拦截
-    if (this.jsBridge && this.jsBridge.hasBackPressCallback()) {
-      const cb = this.jsBridge.getBackPressCallback()
-      if (cb) {
-        const intercepted: boolean = cb()
-        if (intercepted) {
-          return true
-        }
-      }
-    }
-
-    return false
-  }
-
   @Builder
   WebContent() {
     Web({
@@ -203,7 +178,6 @@ export struct ViewerPage {
       })
       .onPageEnd(() => {
         this.isLoading = false
-        this.preloader.markLoaded(this.entryHtml)
       })
       .onErrorReceive((event) => {
         if (event) {
@@ -291,14 +265,24 @@ export struct ViewerPage {
     })
     .hideTitleBar(this.navStyle === 0)
     .onBackPressed((): boolean => {
-      // 弹出确认弹窗
+      // 1. Web 内部历史回退（优先）
+      try {
+        if (this.controller.accessBackward()) {
+          this.controller.backward()
+          return true
+        }
+      } catch (e) {
+        Logger.warn('ViewerPage', 'accessBackward failed')
+      }
+
+      // 2. JSBridge 返回拦截（H5 请求确认）
       if (this.jsBridge && this.jsBridge.hasBackPressCallback()) {
         const showDialogParam: promptAction.ShowDialogOptions = {
           title: '确认返回',
           message: 'H5 页面请求确认是否返回？',
           buttons: [
-            { text: '取消', color: '#64748B' },
-            { text: '确定返回', color: '#6366F1' }
+            { text: '取消', color: $r('app.color.app_text_secondary') },
+            { text: '确定返回', color: $r('app.color.app_primary') }
           ]
         }
         this.getUIContext().getPromptAction().showDialog(showDialogParam)
@@ -315,15 +299,7 @@ export struct ViewerPage {
         return true
       }
 
-      // 无拦截：Web 内部回退
-      try {
-        if (this.controller.accessBackward()) {
-          this.controller.backward()
-          return true
-        }
-      } catch (e) {
-        Logger.warn('ViewerPage', 'accessBackward failed')
-      }
+      // 3. 无拦截：系统处理 NavStack pop（返回 false）
       return false
     })
   }

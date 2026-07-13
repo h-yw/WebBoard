@@ -70,7 +70,7 @@ export struct AppShareCard {
         Text('浮叶')
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#6366F1')
+          .fontColor($r('app.color.app_share_card_brand'))
           .margin({ left: 6 })
         Blank()
         // ── 二维码 ──
@@ -79,13 +79,13 @@ export struct AppShareCard {
             QRCode(this.qrContent())
               .width(25)
               .height(25)
-              .color('#1E293B')
+              .color($r('app.color.app_qr_code'))
               .borderRadius(16)
               .contentOpacity(0.5)
 
             Text('扫码添加')
               .fontSize(9)
-              .fontColor('#CBD5E1')
+              .fontColor($r('app.color.app_qr_label'))
           }
           .alignItems(HorizontalAlign.Center)
           .margin({ top: 16, bottom: 12 })
@@ -113,10 +113,10 @@ export struct AppShareCard {
           .width(56)
           .height(56)
           .borderRadius(14)
-          .linearGradient({
-            angle: 135,
-            colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
-          })
+                  .linearGradient({
+                    angle: 135,
+                    colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
+                  })
           .alignContent(Alignment.Center)
         }
       }
@@ -126,7 +126,7 @@ export struct AppShareCard {
       Text(this.appName)
         .fontSize(24)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#0F172A')
+        .fontColor($r('app.color.app_share_card_text'))
         .textAlign(TextAlign.Center)
         .width('100%')
         .maxLines(2)
@@ -136,7 +136,7 @@ export struct AppShareCard {
       if (this.appDescription.length > 0) {
         Text(this.appDescription)
           .fontSize(13)
-          .fontColor('#64748B')
+          .fontColor($r('app.color.app_share_card_desc'))
           .textAlign(TextAlign.Center)
           .width('100%')
           .maxLines(3)
@@ -151,16 +151,16 @@ export struct AppShareCard {
         Divider()
           .layoutWeight(1)
           .strokeWidth(1)
-          .backgroundColor('#94A3B8')
+          .backgroundColor($r('app.color.app_share_card_footer'))
         Text('来自 浮叶 WebLeaf')
           .fontSize(11)
-          .fontColor('#94A3B8')
+          .fontColor($r('app.color.app_share_card_footer'))
           .margin({ top:  4 , bottom: 4 })
           .padding({left:4,right:4})
         Divider()
           .layoutWeight(1)
           .strokeWidth(1)
-          .backgroundColor('#94A3B8')
+          .backgroundColor($r('app.color.app_share_card_footer'))
       }
       .justifyContent(FlexAlign.Center)
       .alignItems(VerticalAlign.Center)
@@ -168,7 +168,7 @@ export struct AppShareCard {
     }
     .width(360)
     .padding({ left: 32, right: 32, top: 24, bottom: 20 })
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('app.color.app_share_card_bg'))
     .alignItems(HorizontalAlign.Center)
   }
 }

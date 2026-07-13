@@ -5,27 +5,16 @@ import { WebPreloader } from '../util/WebPreloader'
 import { WorkDirectory } from '../util/WorkDirectory'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { fileUri } from '@kit.CoreFileKit'
-import { systemShare } from '@kit.ShareKit'
-import { uniformTypeDescriptor as utd } from '@kit.ArkData'
-import { image } from '@kit.ImageKit'
 import { ImportPage } from './ImportPage'
 import { ViewerPage } from './ViewerPage'
 import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
 import { LogoType, SourceType, LayoutMode } from '../common/Constants'
 import { Toast } from '../ui/ToastUtil'
+import { Dialog } from '../ui/DialogUtil'
 import { Logger } from '../common/Logger'
-import { ComponentContent } from '@kit.ArkUI'
-import { scanBarcode, scanCore } from '@kit.ScanKit'
-import { AppShareCardBuilder, ShareCardParams } from '../component/AppShareCard'
 import { eventEmitter } from '../common/EventEmitter'
-
-interface ScanNavParam {
-  scanUrl: string
-  scanName: string
-  scanDesc: string
-}
+import { shareAppCard, deleteDirectory, startScan } from '../util/IndexActions'
 
 interface ViewerParam {
   entryHtml: string
@@ -44,7 +33,7 @@ interface EditParam {
 
 @Entry
 @Component
-struct Index {
+export struct Index {
   @State appList: WebAppItem[] = []
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
@@ -54,6 +43,8 @@ struct Index {
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
+  private updateListenerId: string = ''
+  private addListenerId: string = ''
 
   getFilteredApps(): WebAppItem[] {
     if (!this.appList || this.appList.length === 0) {
@@ -76,6 +67,7 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    Dialog.setUIContext(this.getUIContext())
     this.dbMgr = DatabaseManager.getInstance(this.context)
     await this.dbMgr.init()
     WorkDirectory.ensureDirectory(this.context)
@@ -85,11 +77,11 @@ struct Index {
     await this.loadApps()
     await this.ensurePresetApps()
     this.preloadRecentApps()
-    eventEmitter.on("item:update",(res)=>{
+    this.updateListenerId = eventEmitter.subscribe("item:update",(res)=>{
       console.log("item:update======>",JSON.stringify(res))
       this.loadApps()
     })
-    eventEmitter.on("item:add",(res)=>{
+    this.addListenerId = eventEmitter.subscribe("item:add",(res)=>{
       console.log("item:add======>",JSON.stringify(res))
       this.loadApps()
     })
@@ -100,8 +92,14 @@ struct Index {
   }
 
   aboutToDisappear(): void {
-    eventEmitter.off("item:update")
-    eventEmitter.off("item:add")
+    if (this.updateListenerId.length > 0) {
+      eventEmitter.unsubscribe(this.updateListenerId)
+      this.updateListenerId = ''
+    }
+    if (this.addListenerId.length > 0) {
+      eventEmitter.unsubscribe(this.addListenerId)
+      this.addListenerId = ''
+    }
   }
 
   onRefreshTick(): void {
@@ -157,6 +155,7 @@ struct Index {
   async loadApps(): Promise<void> {
     if (this.dbMgr) {
       this.appList = await this.dbMgr.getAllApps()
+      this.dataSource = new AppDataSource()
       this.dataSource.setApps(this.getFilteredApps())
     }
   }
@@ -191,28 +190,16 @@ struct Index {
   }
 
   preloadRecentApps(): void {
+    // Tracking-based preloading: record most recently accessed apps.
+    // The WebPreloader maintains an LRU list that ViewerPage uses
+    // for access tracking. Future platform-level preloading can
+    // be added here when ArkUI supports offscreen Web rendering.
     const preloader = WebPreloader.getInstance()
     const recentKeys = preloader.getRecentKeys()
-    for (let i = 0; i < recentKeys.length; i++) {
-      const key = recentKeys[i]
-      const item = this.appList.find(app => app.entryHtml === key)
-      if (!item) {
-        continue
-      }
-      // Skip preloading for URL-type apps (loaded directly from network)
-      if (item.entryHtml.startsWith('http://') || item.entryHtml.startsWith('https://')) {
-        continue
-      }
-      if (!preloader.isPreloaded(key)) {
-        let src = ''
-        if (key.startsWith('rawfile://')) {
-          src = key.substring(10)
-        } else {
-          src = 'file://' + key
-        }
-        preloader.preload(key, src)
-      }
-    }
+    // Currently a no-op: all preload preparation is done lazily
+    // when ViewerPage calls recordAccess() during aboutToAppear.
+    // This method is kept as an extension point for future
+    // WebView pre-warming when the platform provides such capability.
   }
 
   getInitial(name: string): string {
@@ -273,7 +260,7 @@ struct Index {
         message: $r('app.string.action_prompt'),
         buttons: [
           { value: $r('app.string.btn_edit'), action: (): void => { this.navigateToEdit(item) } },
-          { value: $r('app.string.btn_share'), action: (): void => { this.shareAppCard(item) } },
+          { value: $r('app.string.btn_share'), action: (): void => { shareAppCard(item, this.context!, this.getUIContext()) } },
           { value: $r('app.string.btn_delete'), action: (): void => { this.confirmDelete(item) } },
           { value: $r('app.string.btn_cancel'), action: (): void => {} }
         ]
@@ -331,145 +318,6 @@ struct Index {
     Toast.show('已删除')
   }
 
-  private async startScan(): Promise<void> {
-    try {
-      const options: scanBarcode.ScanOptions = {
-        scanTypes: [scanCore.ScanType.QR_CODE],
-        enableMultiMode: false,
-        enableAlbum: true
-      }
-      const result: scanBarcode.ScanResult = await scanBarcode.startScanForResult(this.context!, options)
-      const rawVal: string = result.originalValue
-      if (rawVal.length === 0 || rawVal === 'undefined') {
-        Toast.show('未识别到二维码内容')
-        return
-      }
-      const cleaned: string = rawVal.trim()
-      Logger.info('Index', 'scan raw: [' + cleaned + '] len=' + cleaned.length.toString())
-      let parsed: Record<string, string>
-      try {
-        parsed = JSON.parse(cleaned) as Record<string, string>
-      } catch (e) {
-        this.getUIContext().showAlertDialog({
-          title: '扫码结果',
-          message: '原始内容:\n' + cleaned + '\n\n长度: ' + cleaned.length.toString(),
-          buttons: [{ value: '确定', action: (): void => {} }]
-        })
-        return
-      }
-      const title: string = parsed['t'] || ''
-      const desc: string = parsed['d'] || ''
-      const url: string = parsed['u'] || ''
-      if (url.length > 0) {
-        const scanNav: ScanNavParam = { scanUrl: url, scanName: title, scanDesc: desc }
-        this.navPathStack.pushPath({ name: 'ImportPage', param: scanNav })
-      } else {
-        Toast.show('二维码内容不包含有效网址')
-      }
-    } catch (e) {
-      Toast.show('扫码已取消')
-    }
-  }
-
-  private async shareAppCard(item: WebAppItem): Promise<void> {
-    try {
-      const uiContext: UIContext = this.getUIContext()
-      const params: ShareCardParams = new ShareCardParams(item.name, item.description, item.logoType, item.logoUri, item.entryHtml)
-      const contentNode: ComponentContent<ShareCardParams> = new ComponentContent(uiContext, wrapBuilder(AppShareCardBuilder), params)
-
-      const pixelMap: PixelMap = await uiContext.getComponentSnapshot()
-        .createFromComponent(contentNode, 360, true, { scale: 2, waitUntilRenderFinished: true })
-
-      const tmpPath: string = (this.context!).filesDir + '/share_card_' + Date.now().toString() + '.png'
-      const packer: image.ImagePacker = image.createImagePacker()
-      try {
-        const packedData: ArrayBuffer = await packer.packToData(pixelMap, {
-          format: 'image/png',
-          quality: 100
-        })
-        const file = fs.openSync(tmpPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE)
-        try {
-          fs.writeSync(file.fd, packedData)
-        } finally {
-          fs.closeSync(file)
-        }
-      } finally {
-        packer.release()
-      }
-
-      const imageUri: string = fileUri.getUriFromPath(tmpPath)
-      const sharedData: systemShare.SharedData = new systemShare.SharedData({
-        utd: utd.UniformDataType.IMAGE,
-        uri: imageUri,
-        title: item.name,
-
-      })
-
-      const controller: systemShare.ShareController = new systemShare.ShareController(sharedData)
-      controller.on('shareCompleted', () => {})
-      controller.on('dismiss', () => {
-        setTimeout(() => {
-          try {
-            if (fs.accessSync(tmpPath)) { fs.unlinkSync(tmpPath) }
-          } catch (e) { Logger.warn('Index', 'cleanup share temp file failed') }
-        }, 3000)
-      })
-      controller.show(this.context! as common.UIAbilityContext, {})
-    } catch (e) {
-      Logger.error('Index', 'shareAppCard failed: ' + JSON.stringify(e))
-      Toast.show('分享失败')
-    }
-  }
-
-  private deleteDirectory(dirPath: string): void {
-    try {
-      const stack: string[] = [dirPath]
-      const filesToDelete: string[] = []
-
-      while (stack.length > 0) {
-        const currentDir = stack.pop()!
-        const entries = fs.listFileSync(currentDir)
-
-        for (let i = 0; i < entries.length; i++) {
-          const entry = entries[i]
-          const fullPath = currentDir + '/' + entry
-          const stat = fs.statSync(fullPath)
-          if (stat.isDirectory()) {
-            stack.push(fullPath)
-          } else {
-            filesToDelete.push(fullPath)
-          }
-        }
-      }
-
-      for (let i = filesToDelete.length - 1; i >= 0; i--) {
-        fs.unlinkSync(filesToDelete[i])
-      }
-
-      const dirsToDelete: string[] = [dirPath]
-      const tempStack: string[] = [dirPath]
-      while (tempStack.length > 0) {
-        const currentDir = tempStack.pop()!
-        const entries = fs.listFileSync(currentDir)
-        for (let i = 0; i < entries.length; i++) {
-          const entry = entries[i]
-          const fullPath = currentDir + '/' + entry
-          const stat = fs.statSync(fullPath)
-          if (stat.isDirectory()) {
-            dirsToDelete.push(fullPath)
-            tempStack.push(fullPath)
-          }
-        }
-      }
-
-      for (let i = dirsToDelete.length - 1; i >= 0; i--) {
-        fs.rmdirSync(dirsToDelete[i])
-      }
-    } catch (e) {
-      Logger.error('Index', 'deleteDirectory failed: ' + dirPath)
-    }
-  }
-
   @Builder
   SearchBar() {
     Row() {
@@ -483,6 +331,7 @@ struct Index {
         .layoutWeight(1)
         .onChange((value: string) => {
           this.searchKeyword = value
+          this.dataSource = new AppDataSource()
           this.dataSource.setApps(this.getFilteredApps())
         })
     }
@@ -516,7 +365,7 @@ struct Index {
         .borderRadius(12)
         .linearGradient({
           angle: 135,
-          colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+          colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
         })
         .alignContent(Alignment.Center)
       }
@@ -602,7 +451,7 @@ struct Index {
         .borderRadius(14)
         .linearGradient({
           angle: 135,
-          colors: [['#6366F1', 0.0], ['#8B5CF6', 1.0]]
+          colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
         })
         .alignContent(Alignment.Center)
       }
@@ -683,7 +532,7 @@ struct Index {
       .height(32)
       .borderRadius(6)
       .onClick(() => {
-        this.startScan()
+        startScan(this.context!, this.getUIContext(), this.navPathStack)
       })
 
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
