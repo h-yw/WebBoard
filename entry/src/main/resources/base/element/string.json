@@ -335,6 +335,10 @@
     {
       "name": "market_empty",
       "value": "暂无可用应用"
+    },
+    {
+      "name": "permission_location_reason",
+      "value": "用于获取您的位置信息以支持 H5 应用的定位功能"
     }
   ]
 }

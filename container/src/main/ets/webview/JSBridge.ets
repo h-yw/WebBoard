@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb'
-import { common, bundleManager } from '@kit.AbilityKit'
+import { common, bundleManager, abilityAccessCtrl, Permissions, PermissionRequestResult } from '@kit.AbilityKit'
 import { connection } from '@kit.NetworkKit'
 import request from '@ohos.request'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -9,6 +9,10 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { vibrator } from '@kit.SensorServiceKit'
 import { util } from '@kit.ArkTS'
+import { pasteboard } from '@kit.BasicServicesKit'
+import { geoLocationManager } from '@kit.LocationKit'
+import { notificationManager } from '@kit.NotificationKit'
+import { window as arkWindow } from '@kit.ArkUI'
 import { Logger } from '../common/Logger'
 
 export type SourceType = 'rawfile' | 'file' | 'url'
@@ -203,6 +207,24 @@ export class JSBridge {
       case 'hasMethod':
         this.handleHasMethod(params, callId)
         break
+      case 'setClipboard':
+        this.handleSetClipboard(params, callId)
+        break
+      case 'getLocation':
+        this.handleGetLocation(callId)
+        break
+      case 'scanQRCode':
+        this.handleScanQRCode(callId)
+        break
+      case 'downloadFile':
+        this.handleDownloadFile(params, callId)
+        break
+      case 'showNotification':
+        this.handleShowNotification(params, callId)
+        break
+      case 'setScreenKeepAwake':
+        this.handleSetScreenKeepAwake(params, callId)
+        break
       default:
         this.callback(callId, { status: 'error', code: 'METHOD_NOT_FOUND', message: '未知方法: ' + method, error: 'unknown method' })
         break
@@ -248,7 +270,13 @@ export class JSBridge {
         'systemImagePick': 'allow',
         'vibrate': 'allow',
         'onBackPress': 'allow',
-        'navigateBack': 'allow'
+        'navigateBack': 'allow',
+        'setClipboard': 'allow',
+        'getLocation': 'allow',
+        'scanQRCode': 'allow',
+        'downloadFile': 'allow',
+        'showNotification': 'allow',
+        'setScreenKeepAwake': 'allow'
       }
     }
     return {
@@ -258,7 +286,13 @@ export class JSBridge {
       'systemImagePick': 'deny',
       'vibrate': 'deny',
       'onBackPress': 'allow',
-      'navigateBack': 'allow'
+      'navigateBack': 'allow',
+      'setClipboard': 'allow',
+      'getLocation': 'allow',
+      'scanQRCode': 'deny',
+      'downloadFile': 'allow',
+      'showNotification': 'deny',
+      'setScreenKeepAwake': 'allow'
     }
   }
 
@@ -277,7 +311,8 @@ export class JSBridge {
       const params: Record<string, string> = JSON.parse(paramsStr) as Record<string, string>
       const name: string = params['name'] || ''
       const knownMethods: string[] = ['getAppInfo', 'modifyNavStyle', 'systemShare', 'systemImagePick',
-        'vibrate', 'onBackPress', 'navigateBack', 'getVersion', 'hasMethod']
+        'vibrate', 'onBackPress', 'navigateBack', 'getVersion', 'hasMethod',
+        'setClipboard', 'getLocation', 'scanQRCode', 'downloadFile', 'showNotification', 'setScreenKeepAwake']
       const resultData: HasMethodData = { available: knownMethods.indexOf(name) >= 0 }
       this.callback(callId, { status: 'ok', code: 'OK', data: resultData as object })
     } catch (e) {
@@ -581,6 +616,130 @@ export class JSBridge {
       this.callback(callId, { status: 'ok', code: 'OK', data: null })
     } catch (e) {
       this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '返回操作失败', error: 'navigateBack failed' })
+    }
+  }
+
+  private async handleSetClipboard(paramsStr: string, callId: string): Promise<void> {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, string>
+      const text: string = params.text || ''
+      if (!text) {
+        this.callback(callId, { status: 'error', code: 'INVALID_PARAMS', message: 'text required' })
+        return
+      }
+      const pbData = pasteboard.createData('text/plain', text)
+      await pasteboard.getSystemPasteboard().setData(pbData)
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
+    } catch (e) {
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: 'clipboard failed' })
+    }
+  }
+
+  // --- Runtime permission request helper ---
+  private async requestPermission(permName: Permissions): Promise<boolean> {
+    try {
+      const atManager = abilityAccessCtrl.createAtManager()
+      const bundleInfo = bundleManager.getBundleInfoForSelfSync(
+        bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION
+      )
+      const tokenId = bundleInfo.appInfo.accessTokenId
+      const result = atManager.checkAccessTokenSync(tokenId, permName)
+      if (result === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
+        return true
+      }
+      const permList: Permissions[] = [permName]
+      const reqResult: PermissionRequestResult = await atManager.requestPermissionsFromUser(
+        this.context as common.UIAbilityContext, permList)
+      return reqResult.authResults[0] === 0
+    } catch (e) {
+      Logger.error('JSBridge', 'requestPermission failed: ' + JSON.stringify(e))
+      return false
+    }
+  }
+
+  private async handleGetLocation(callId: string): Promise<void> {
+    try {
+      const granted = await this.requestPermission('ohos.permission.APPROXIMATELY_LOCATION' as Permissions)
+      if (!granted) {
+        this.callback(callId, { status: 'error', code: 'PERMISSION_DENIED', message: '位置权限未授予，请在系统设置中开启' })
+        return
+      }
+      geoLocationManager.getCurrentLocation().then((location) => {
+        const locData: Record<string, Object> = { 'lat': location.latitude, 'lng': location.longitude, 'accuracy': location.accuracy }
+        this.callback(callId, { status: 'ok', code: 'OK', data: locData as object })
+      }).catch((err: Error) => {
+        Logger.error('JSBridge', 'getCurrentLocation failed: ' + JSON.stringify(err))
+        this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '获取位置失败' })
+      })
+    } catch (e) {
+      Logger.error('JSBridge', 'handleGetLocation error: ' + JSON.stringify(e))
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '定位功能不可用' })
+    }
+  }
+
+  private handleScanQRCode(callId: string): void {
+    try {
+      Logger.warn('JSBridge', 'scanQRCode: not directly implemented, use native scan button')
+      this.callback(callId, { status: 'error', code: 'NOT_SUPPORTED', message: '请使用首页扫码按钮' })
+    } catch (e) {
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: 'scanQRCode failed' })
+    }
+  }
+
+  private async handleDownloadFile(paramsStr: string, callId: string): Promise<void> {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, string>
+      const url: string = params.url || ''
+      if (!url) {
+        this.callback(callId, { status: 'error', code: 'INVALID_PARAMS', message: 'url required' })
+        return
+      }
+      const filePath: string = params.path || (this.context.cacheDir + '/download_' + Date.now())
+      Logger.debug('JSBridge', 'downloadFile: ' + url + ' → ' + filePath)
+      const downloadTask = await request.downloadFile(this.context, { url: url, filePath: filePath })
+      downloadTask.on('complete', () => {
+        const dlResult: Record<string, string> = { 'savedPath': filePath }
+        this.callback(callId, { status: 'ok', code: 'OK', data: dlResult as object })
+      })
+      downloadTask.on('fail', (err: number) => {
+        Logger.error('JSBridge', 'downloadFile failed with code: ' + err)
+        this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '下载失败 (code:' + err + ')，请检查 URL 是否可达' })
+      })
+    } catch (e) {
+      Logger.error('JSBridge', 'handleDownloadFile error: ' + JSON.stringify(e))
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '下载发起失败' })
+    }
+  }
+
+  private async handleShowNotification(paramsStr: string, callId: string): Promise<void> {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, string>
+      const title: string = params.title || 'WebLeaf'
+      const body: string = params.body || ''
+      const notificationRequest: notificationManager.NotificationRequest = {
+        id: Date.now(),
+        content: {
+          contentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+          normal: { title: title, text: body }
+        }
+      } as notificationManager.NotificationRequest
+      await notificationManager.publish(notificationRequest)
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
+    } catch (e) {
+      Logger.error('JSBridge', 'handleShowNotification error: ' + JSON.stringify(e))
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '发送通知失败，请在系统设置中开启通知权限' })
+    }
+  }
+
+  private async handleSetScreenKeepAwake(paramsStr: string, callId: string): Promise<void> {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, Object>
+      const enabled: boolean = params['enabled'] === true
+      const mainWindow = await arkWindow.getLastWindow(this.context)
+      await mainWindow.setKeepScreenOn(enabled)
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
+    } catch (e) {
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: 'setKeepAwake failed' })
     }
   }
 }

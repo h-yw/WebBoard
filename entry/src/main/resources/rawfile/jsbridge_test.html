@@ -324,6 +324,94 @@
   </div>
 </div>
 
+<!-- 🆕 新增能力 -->
+<div class="section">
+  <div class="section-title">🆕 新增能力</div>
+
+  <!-- setClipboard -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">setClipboard</div>
+        <div class="method-desc">写入文本到系统剪贴板</div>
+      </div>
+      <button class="btn" onclick="callSetClipboard()" style="font-size:11px; min-width:auto; padding:0 10px;">写入</button>
+    </div>
+    <div style="margin-top:4px;">
+      <input id="inputClipboardText" type="text" value="Hello WebLeaf!" style="width:100%; padding:8px 12px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; outline:none;" placeholder="输入要写入剪贴板的文本" />
+    </div>
+    <div class="result-box" id="resultClipboard"></div>
+  </div>
+
+  <!-- getLocation -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">getLocation</div>
+        <div class="method-desc">获取设备当前位置（经纬度）</div>
+      </div>
+      <button class="btn" onclick="callGetLocation()" style="font-size:11px; min-width:auto; padding:0 10px;">获取位置</button>
+    </div>
+    <div class="result-box" id="resultLocation"></div>
+  </div>
+
+  <!-- scanQRCode -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">scanQRCode</div>
+        <div class="method-desc">扫码（由原生扫码按钮实现）</div>
+      </div>
+      <button class="btn btn-warning" onclick="callScanQRCode()" style="font-size:11px; min-width:auto; padding:0 10px;">扫码</button>
+    </div>
+    <div class="result-box" id="resultScanQR"></div>
+  </div>
+
+  <!-- downloadFile -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">downloadFile</div>
+        <div class="method-desc">从 URL 下载文件到本地</div>
+      </div>
+      <button class="btn btn-success" onclick="callDownloadFile()" style="font-size:11px; min-width:auto; padding:0 10px;">下载</button>
+    </div>
+    <div style="margin-top:4px;">
+      <input id="inputDownloadUrl" type="text" value="https://res.vmallres.com/cloud-bundles/HUAWEI_Mobile_Services/health/img/index_banner_6.jpg" style="width:100%; padding:8px 12px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; outline:none;" placeholder="输入文件下载 URL" />
+    </div>
+    <div class="result-box" id="resultDownload"></div>
+  </div>
+
+  <!-- showNotification -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">showNotification</div>
+        <div class="method-desc">发送系统通知</div>
+      </div>
+      <button class="btn" onclick="callShowNotification()" style="font-size:11px; min-width:auto; padding:0 10px;">通知</button>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:4px; flex-wrap:wrap;">
+      <input id="inputNotifTitle" type="text" value="WebLeaf" style="flex:1; min-width:100px; padding:8px 12px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; outline:none;" placeholder="通知标题" />
+      <input id="inputNotifBody" type="text" value="来自 JSBridge 的测试通知" style="flex:2; min-width:150px; padding:8px 12px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; outline:none;" placeholder="通知内容" />
+    </div>
+    <div class="result-box" id="resultNotification"></div>
+  </div>
+
+  <!-- setScreenKeepAwake -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="method-name">setScreenKeepAwake</div>
+        <div class="method-desc">保持屏幕常亮 / 允许熄屏</div>
+      </div>
+      <button class="btn" id="btnKeepAwake" onclick="callSetScreenKeepAwake()" style="font-size:11px; min-width:auto; padding:0 10px;">🔒 常亮</button>
+    </div>
+    <div class="result-box" id="resultKeepAwake"></div>
+  </div>
+
+</div>
+
 <!-- 6. onBackPress -->
 <div class="section">
   <div class="section-title">🔙 返回拦截</div>
@@ -579,6 +667,92 @@ function callNavigateBack() {
     showToast('路由返回已触发')
   }).catch(function(err) {
     showToast('返回失败: ' + err.message)
+  })
+}
+
+// ===================== 🆕 新增能力 =====================
+
+// setClipboard
+function callSetClipboard() {
+  var text = document.getElementById('inputClipboardText').value || 'Hello WebLeaf!'
+  showResult('resultClipboard', { status: '写入中...' }, 'loading')
+  sdkCall('setClipboard', { text: text }).then(function() {
+    showResult('resultClipboard', { text: text, message: '已写入剪贴板' }, 'ok')
+    showToast('已写入剪贴板: ' + text)
+  }).catch(function(err) {
+    showResult('resultClipboard', { error: err.message }, 'error')
+  })
+}
+
+// getLocation
+function callGetLocation() {
+  showResult('resultLocation', { status: '获取位置中...' }, 'loading')
+  sdkCall('getLocation', {}).then(function(data) {
+    showResult('resultLocation', data || {}, 'ok')
+    showToast('位置获取成功')
+  }).catch(function(err) {
+    showResult('resultLocation', { error: err.message }, 'error')
+  })
+}
+
+// scanQRCode
+function callScanQRCode() {
+  showResult('resultScanQR', { status: '发起扫码...' }, 'loading')
+  sdkCall('scanQRCode', {}).then(function(data) {
+    showResult('resultScanQR', data || {}, 'ok')
+  }).catch(function(err) {
+    showResult('resultScanQR', { error: err.message, note: '请使用首页原生扫码按钮' }, 'error')
+  })
+}
+
+// downloadFile
+function callDownloadFile() {
+  var url = document.getElementById('inputDownloadUrl').value
+  if (!url) { showToast('请输入下载 URL'); return }
+  showResult('resultDownload', { status: '下载中...', url: url }, 'loading')
+  sdkCall('downloadFile', { url: url }).then(function(data) {
+    showResult('resultDownload', data || {}, 'ok')
+    showToast('下载完成')
+  }).catch(function(err) {
+    showResult('resultDownload', { error: err.message }, 'error')
+  })
+}
+
+// showNotification
+function callShowNotification() {
+  var title = document.getElementById('inputNotifTitle').value || 'WebLeaf'
+  var body = document.getElementById('inputNotifBody').value || '测试通知'
+  showResult('resultNotification', { status: '发送中...', title: title, body: body }, 'loading')
+  sdkCall('showNotification', { title: title, body: body }).then(function() {
+    showResult('resultNotification', { title: title, body: body, message: '通知已发送' }, 'ok')
+    showToast('通知已发送')
+  }).catch(function(err) {
+    showResult('resultNotification', { error: err.message }, 'error')
+  })
+}
+
+// setScreenKeepAwake
+var keepAwakeEnabled = false
+function callSetScreenKeepAwake() {
+  keepAwakeEnabled = !keepAwakeEnabled
+  var enabled = keepAwakeEnabled
+  showResult('resultKeepAwake', { status: '设置中...', enabled: enabled }, 'loading')
+  sdkCall('setScreenKeepAwake', { enabled: enabled }).then(function() {
+    var btn = document.getElementById('btnKeepAwake')
+    if (enabled) {
+      btn.textContent = '🔓 允许熄屏'
+      btn.className = 'btn btn-warning'
+      btn.style.cssText = 'font-size:11px; min-width:auto; padding:0 10px;'
+    } else {
+      btn.textContent = '🔒 常亮'
+      btn.className = 'btn'
+      btn.style.cssText = 'font-size:11px; min-width:auto; padding:0 10px;'
+    }
+    showResult('resultKeepAwake', { enabled: enabled, message: enabled ? '屏幕常亮已开启' : '屏幕常亮已关闭' }, 'ok')
+    showToast(enabled ? '屏幕常亮已开启' : '屏幕常亮已关闭')
+  }).catch(function(err) {
+    keepAwakeEnabled = !enabled
+    showResult('resultKeepAwake', { error: err.message }, 'error')
   })
 }
 

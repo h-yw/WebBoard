@@ -127,6 +127,36 @@
       return window.webLeaf._call('navigateBack');
     },
 
+    /** Write text to system clipboard */
+    setClipboard: function(text) {
+      return window.webLeaf._call('setClipboard', { text: text });
+    },
+
+    /** Get current device location */
+    getLocation: function() {
+      return window.webLeaf._call('getLocation');
+    },
+
+    /** Scan QR code (triggers native scanner) */
+    scanQRCode: function() {
+      return window.webLeaf._call('scanQRCode');
+    },
+
+    /** Download file from URL */
+    downloadFile: function(url, path) {
+      return window.webLeaf._call('downloadFile', { url: url, path: path });
+    },
+
+    /** Show system notification */
+    showNotification: function(title, body) {
+      return window.webLeaf._call('showNotification', { title: title, body: body });
+    },
+
+    /** Keep screen on (prevent sleep) */
+    setScreenKeepAwake: function(enabled) {
+      return window.webLeaf._call('setScreenKeepAwake', { enabled: enabled });
+    },
+
     /** Generic method call */
     call: function(method, params) {
       return window.webLeaf._call(method, params || {});
