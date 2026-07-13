@@ -6,9 +6,7 @@ import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { image } from '@kit.ImageKit'
 import { ComponentContent } from '@kit.ArkUI'
 import { scanBarcode, scanCore } from '@kit.ScanKit'
-import { WebAppItem } from '../model/WebAppItem'
-import { Toast } from '../ui/ToastUtil'
-import { Logger } from '../common/Logger'
+import { WebAppItem, Toast, Logger } from 'container'
 import { AppShareCardBuilder, ShareCardParams } from '../component/AppShareCard'
 
 interface ScanNavParam {

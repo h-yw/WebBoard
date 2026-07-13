@@ -1,4 +1,4 @@
-import { LogoType } from '../common/Constants'
+import { LogoType } from 'container'
 import { JSON } from '@kit.ArkTS'
 
 interface QrData {

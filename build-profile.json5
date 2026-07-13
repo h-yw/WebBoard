@@ -51,6 +51,18 @@
           ]
         }
       ]
+    },
+    {
+      "name": "container",
+      "srcPath": "./container",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
     }
   ]
 }

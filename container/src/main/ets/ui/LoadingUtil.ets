@@ -34,7 +34,6 @@ export class Loading {
         builder: (): void => {
           LoadingContentBuilder()
         },
-        customStyle: false,
         autoCancel: false
       }).then((id: number) => {
         currentLoadingId = id;

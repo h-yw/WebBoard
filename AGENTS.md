@@ -93,15 +93,23 @@ A compact instruction file for future OpenCode / AI coding sessions working on t
 ## Code structure (entry/src/main/ets/)
 
 ```
-├── common/          Constants.ets, EventEmitter.ets, Logger.ets
-├── component/       AppShareCard.ets
-├── database/        DatabaseManager.ets (SQLite singleton)
-├── entryability/    EntryAbility.ets
-├── entrybackupability/
-├── model/           WebAppItem.ets, AppDataSource.ets
-├── pages/           Index.ets, ImportPage.ets, ViewerPage.ets, EditPage.ets, SettingsPage.ets, SplashPage.ets
-├── ui/              ToastUtil.ets, LoadingUtil.ets, DialogUtil.ets
-└── util/            FileManager.ets, JSBridge.ets, WebPreloader.ets, WorkDirectory.ets
+├── entry/                     # (HAP) Application shell
+│   └── src/main/ets/
+│       ├── pages/             Index.ets, ViewerPage.ets, ImportPage.ets, EditPage.ets, SettingsPage.ets, SplashPage.ets
+│       ├── entryability/      EntryAbility.ets
+│       ├── entrybackupability/
+│       ├── util/              IndexActions.ets (retained in entry)
+│       └── component/         AppShareCard.ets
+│
+├── container/                 # (HSP) Container dynamic shared package
+    └── src/main/ets/
+        ├── Index.ets          Facade — exports all public APIs
+        ├── webview/           WebContainer.ets, JSBridge.ets, webleaf-sdk.ets, WebContainerController.ets
+        ├── database/          DatabaseManager.ets (SQLite singleton)
+        ├── model/             WebAppItem.ets, AppDataSource.ets
+        ├── common/            Logger.ets, EventEmitter.ets, Constants.ets
+        ├── ui/                ToastUtil.ets, LoadingUtil.ets, DialogUtil.ets
+        └── util/              WebPreloader.ets, FileManager.ets, WorkDirectory.ets
 ```
 
 ## Gotchas & pitfalls

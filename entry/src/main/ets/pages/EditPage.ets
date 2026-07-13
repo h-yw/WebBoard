@@ -1,12 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { WebAppItem } from '../model/WebAppItem'
-import { DatabaseManager } from '../database/DatabaseManager'
-import { FileManager } from '../util/FileManager'
-import { WorkDirectory } from '../util/WorkDirectory'
-import { LogoType, SourceType } from '../common/Constants'
-import { Dialog } from '../ui/DialogUtil'
-import { Toast } from '../ui/ToastUtil'
-import { EventArg, eventEmitter } from '../common/EventEmitter'
+import { WebAppItem, DatabaseManager, FileManager, WorkDirectory, LogoType, SourceType, Dialog, Toast, EventArg, eventEmitter } from 'container'
 
 interface EditParam {
   appId: string

@@ -1,20 +1,18 @@
-import { WebAppItem } from '../model/WebAppItem'
-import { AppDataSource } from '../model/AppDataSource'
-import { DatabaseManager } from '../database/DatabaseManager'
-import { WebPreloader } from '../util/WebPreloader'
-import { WorkDirectory } from '../util/WorkDirectory'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ImportPage } from './ImportPage'
 import { ViewerPage } from './ViewerPage'
 import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
-import { LogoType, SourceType, LayoutMode } from '../common/Constants'
-import { Toast } from '../ui/ToastUtil'
-import { Dialog } from '../ui/DialogUtil'
-import { Logger } from '../common/Logger'
-import { eventEmitter } from '../common/EventEmitter'
+import { WebAppItem, AppDataSource, DatabaseManager, WebPreloader, WorkDirectory, LogoType, SourceType, LayoutMode, Toast, Dialog, Logger, eventEmitter } from 'container'
 import { shareAppCard, deleteDirectory, startScan } from '../util/IndexActions'
+
+interface MarketApp {
+  name: string
+  description: string
+  entryHtml: string
+  sourceType: string
+}
 
 interface ViewerParam {
   entryHtml: string
@@ -31,6 +29,22 @@ interface EditParam {
   sourceType: string
 }
 
+// Light app market data source
+const MARKET_APPS: MarketApp[] = [
+  {
+    name: 'JSBridge 测试',
+    description: '测试 JSBridge 所有原生方法调用',
+    entryHtml: 'rawfile://jsbridge_test.html',
+    sourceType: SourceType.PRESET
+  },
+  {
+    name: '速算估算微练',
+    description: '掌握 1/2 到 1/20 的快速转换，提升心算敏感度',
+    entryHtml: 'rawfile://code_artifact.html',
+    sourceType: SourceType.PRESET
+  }
+]
+
 @Entry
 @Component
 export struct Index {
@@ -38,6 +52,7 @@ export struct Index {
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
+  @State selectedTab: string = 'local'
   @StorageProp('dataRefreshTick') @Watch('onRefreshTick') dataRefreshTick: number = 0
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
@@ -45,6 +60,7 @@ export struct Index {
   private navPathStack: NavPathStack = new NavPathStack()
   private updateListenerId: string = ''
   private addListenerId: string = ''
+  private installedHtmlSet: Set<string> = new Set()
 
   getFilteredApps(): WebAppItem[] {
     if (!this.appList || this.appList.length === 0) {
@@ -155,6 +171,12 @@ export struct Index {
   async loadApps(): Promise<void> {
     if (this.dbMgr) {
       this.appList = await this.dbMgr.getAllApps()
+      // Build installed set for market "已添加" state
+      const installedSet: Set<string> = new Set()
+      for (let i = 0; i < this.appList.length; i++) {
+        installedSet.add(this.appList[i].entryHtml)
+      }
+      this.installedHtmlSet = installedSet
       // Reuse the same dataSource instance — LazyForEach is bound to it via
       // registerDataChangeListener. Creating new instances loses the listener
       // and breaks UI refresh for all operations (add, edit, delete, search).
@@ -318,6 +340,29 @@ export struct Index {
     }
     await this.loadApps()
     Toast.show('已删除')
+  }
+
+  isMarketAppInstalled(marketApp: MarketApp): boolean {
+    return this.installedHtmlSet.has(marketApp.entryHtml)
+  }
+
+  async addMarketApp(marketApp: MarketApp): Promise<void> {
+    if (!this.dbMgr) {
+      return
+    }
+    const item = new WebAppItem()
+    item.id = WorkDirectory.generateId()
+    item.name = marketApp.name
+    item.description = marketApp.description
+    item.logoType = LogoType.INITIAL
+    item.logoUri = ''
+    item.entryHtml = marketApp.entryHtml
+    item.sourceType = marketApp.sourceType
+    item.createTime = Date.now()
+    await this.dbMgr.addApp(item)
+    await this.loadApps()
+    this.selectedTab = 'local'
+    Toast.show('已添加')
   }
 
   @Builder
@@ -512,6 +557,182 @@ export struct Index {
   }
 
   @Builder
+  MarketCard(marketApp: MarketApp) {
+    Row() {
+      Stack() {
+        Text(this.getInitial(marketApp.name))
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+      }
+      .width(56)
+      .height(56)
+      .borderRadius(12)
+      .linearGradient({
+        angle: 135,
+        colors: [[$r('app.color.app_gradient_start'), 0.0], [$r('app.color.app_gradient_end'), 1.0]]
+      })
+      .alignContent(Alignment.Center)
+
+      Column() {
+        Row() {
+          Text(marketApp.name)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.app_text_primary'))
+            .layoutWeight(1)
+
+          Text('演示')
+            .fontSize(11)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.app_success'))
+            .borderRadius(4)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.SpaceBetween)
+        .alignItems(VerticalAlign.Center)
+
+        if (marketApp.description.length > 0) {
+          Text(marketApp.description)
+            .fontSize(13)
+            .fontColor($r('app.color.app_text_secondary'))
+            .maxLines(3)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .margin({ top: 6 })
+            .width('100%')
+        }
+
+        Row() {
+          if (this.isMarketAppInstalled(marketApp)) {
+            Button($r('app.string.btn_open'))
+              .height(32)
+              .borderRadius(8)
+              .fontSize(13)
+              .backgroundColor($r('app.color.app_primary'))
+              .fontColor(Color.White)
+              .onClick(() => {
+                const param: ViewerParam = {
+                  entryHtml: marketApp.entryHtml,
+                  appName: marketApp.name
+                }
+                this.navPathStack.pushPath({ name: 'ViewerPage', param: param })
+              })
+          } else {
+            Button($r('app.string.btn_add'))
+              .height(32)
+              .borderRadius(8)
+              .fontSize(13)
+              .backgroundColor($r('app.color.app_success'))
+              .fontColor(Color.White)
+              .onClick(() => {
+                this.addMarketApp(marketApp)
+              })
+          }
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.End)
+        .margin({ top: 8 })
+      }
+      .layoutWeight(1)
+      .margin({ left: 12 })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .padding(16)
+    .borderRadius(12)
+    .backgroundColor($r('app.color.app_card_bg'))
+    .shadow({
+      radius: 6,
+      color: $r('app.color.app_shadow'),
+      offsetX: 0,
+      offsetY: 2
+    })
+  }
+
+  @Builder
+  MarketView() {
+    Column() {
+      if (MARKET_APPS.length > 0) {
+        List({ space: 12 }) {
+          ForEach(MARKET_APPS, (marketApp: MarketApp) => {
+            ListItem() {
+              this.MarketCard(marketApp)
+            }
+          }, (marketApp: MarketApp) => marketApp.entryHtml)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+      } else {
+        Column() {
+          Text('📦')
+            .fontSize(48)
+          Text($r('app.string.market_empty'))
+            .fontSize(14)
+            .fontColor($r('app.color.app_text_muted'))
+            .margin({ top: 8 })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  TabBar() {
+    Row({ space: 0 }) {
+      Button() {
+        Text($r('app.string.tab_local'))
+          .fontSize(14)
+          .fontWeight(this.selectedTab === 'local' ? FontWeight.Medium : FontWeight.Normal)
+          .fontColor(this.selectedTab === 'local' ? Color.White : $r('app.color.app_text_secondary'))
+      }
+      .height(36)
+      .borderRadius({
+        topLeft: 8,
+        bottomLeft: 8,
+        topRight: 0,
+        bottomRight: 0
+      })
+      .backgroundColor(this.selectedTab === 'local' ? $r('app.color.app_primary') : $r('app.color.app_card_bg'))
+      .border({ width: 1, color: $r('app.color.app_border') })
+      .layoutWeight(1)
+      .onClick(() => {
+        this.selectedTab = 'local'
+      })
+
+      Button() {
+        Text($r('app.string.tab_market'))
+          .fontSize(14)
+          .fontWeight(this.selectedTab === 'market' ? FontWeight.Medium : FontWeight.Normal)
+          .fontColor(this.selectedTab === 'market' ? Color.White : $r('app.color.app_text_secondary'))
+      }
+      .height(36)
+      .borderRadius({
+        topLeft: 0,
+        bottomLeft: 0,
+        topRight: 8,
+        bottomRight: 8
+      })
+      .backgroundColor(this.selectedTab === 'market' ? $r('app.color.app_primary') : $r('app.color.app_card_bg'))
+      .border({ width: 1, color: $r('app.color.app_border') })
+      .layoutWeight(1)
+      .onClick(() => {
+        this.selectedTab = 'market'
+      })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 8, bottom: 4 })
+  }
+
+  @Builder
   Menus() {
     Row({ space: 8 }) {
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
@@ -583,9 +804,11 @@ export struct Index {
   build() {
     Navigation(this.navPathStack) {
       Column() {
-        this.SearchBar()
+        this.TabBar()
 
-        if (this.getFilteredApps().length === 0) {
+        if (this.selectedTab === 'market') {
+          this.MarketView()
+        } else if (this.getFilteredApps().length === 0) {
           Column({ space: 16 }) {
             if (this.searchKeyword.length > 0) {
               Text('🔍')
@@ -650,6 +873,7 @@ export struct Index {
           .justifyContent(FlexAlign.Center)
           .alignItems(HorizontalAlign.Center)
         } else {
+          this.SearchBar()
           Refresh({ refreshing: $$this.isRefreshing }) {
             if (this.layoutMode === LayoutMode.GRID) {
               Scroll() {

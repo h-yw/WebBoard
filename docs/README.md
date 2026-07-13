@@ -233,6 +233,80 @@ if (this.entryHtml.startsWith('rawfile://')) {
 
 子页面通过 `navDestination` builder 注册（无需在 main_pages.json 中声明）。
 
+## 项目架构（多模块）
+
+从 v2.0 起，WebBoard 重构为多模块架构：
+
+### 模块划分
+
+```
+WebBoard/
+├── entry/        # (HAP) 应用管理壳 — 页面路由、UI、轻应用市场
+│   └── src/main/ets/
+│       ├── pages/           # 页面组件（Index, ViewerPage, ImportPage, EditPage, SettingsPage）
+│       ├── entryability/    # EntryAbility（应用入口）
+│       ├── util/            # IndexActions.ets（保留在 entry 的 DOM 相关操作）
+│       └── component/       # AppShareCard.ets（分享卡片组件）
+│
+└── container/   # (HSP) 容器核心动态共享包 — 业务逻辑与基础设施
+    └── src/main/ets/
+        ├── Index.ets       # 门面入口，导出所有公共 API
+        ├── webview/        # WebContainer + JSBridge + 双轨 SDK
+        ├── database/       # DatabaseManager（SQLite 单例）
+        ├── model/          # WebAppItem, AppDataSource
+        ├── common/         # Logger, EventEmitter, Constants
+        ├── ui/             # Toast, Loading, Dialog 工具
+        └── util/           # WebPreloader, FileManager, WorkDirectory
+```
+
+- **entry HAP**: 纯应用壳，负责 UI 和页面路由，从 container 导入所有业务能力
+- **container HSP**: 动态共享包，封装 WebView 引擎、数据库、文件管理、JSBridge 等核心能力
+- 多模块通过 entry/oh-package.json5 中的 `"container": "file:../container"` 链接
+
+### WebContainer
+
+`container` 模块提供可复用的 `WebContainer` 组件：
+- 封装 Web 组件配置（javaScriptAccess, mixedMode, domStorageAccess）
+- 管理 JSBridge 生命周期（init, javaScriptProxy, cleanup）
+- 加载进度条 + 错误重试 UI
+- `onPageBegin` 自动注入 `window.webLeaf` Promise SDK
+- 返回键拦截（Web 历史 → JSBridge 回调 → NavStack 弹出）
+
+### JSBridge 双轨 SDK
+
+H5 开发者可通过两种方式调用原生能力：
+
+1. **自动注入**（推荐）：加载后直接使用 `window.webLeaf.getAppInfo().then(...)` 
+2. **手动引用**：引入 `webleaf-sdk.js` 获取 IDE 类型提示和 TypeScript 定义
+
+已注册的 8 个原生方法：
+- `getAppInfo()` — 应用和设备信息
+- `modifyNavStyle(style, title)` — 导航栏样式
+- `systemShare(params)` — 系统分享
+- `systemImagePick(params)` — 系统图片选择
+- `vibrate(params)` — 震动
+- `onBackPress()` — 返回拦截
+- `navigateBack()` — 返回导航
+- `call(method, params)` — 通用调用
+
+### 轻应用市场
+
+首页支持"本地应用"和"应用市场"两个标签页：
+- **本地应用**: 已添加至本地的 HTML 应用列表
+- **应用市场**: 展示内置演示应用（JSBridge 测试、速算估算微练）
+- 用户点击"添加"即可将演示应用加入本地列表
+- 已添加的应用显示"打开"按钮，可直接跳转查看
+
+### 构建说明
+
+```bash
+# 构建项目（debug 模式）
+hvigorw assembleHap -p product=default
+
+# 单模组构建 entry
+hvigorw assembleHap -p product=default -p module=entry
+```
+
 ## 已知限制
 
 无

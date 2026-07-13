@@ -1,0 +1,32 @@
+{
+  "color": [
+    {
+      "name": "app_primary",
+      "value": "#818CF8"
+    },
+    {
+      "name": "app_divider",
+      "value": "#475569"
+    },
+    {
+      "name": "app_text_primary",
+      "value": "#F8FAFC"
+    },
+    {
+      "name": "app_text_secondary",
+      "value": "#94A3B8"
+    },
+    {
+      "name": "app_text_muted",
+      "value": "#64748B"
+    },
+    {
+      "name": "app_card_bg",
+      "value": "#334155"
+    },
+    {
+      "name": "app_border",
+      "value": "#475569"
+    }
+  ]
+}

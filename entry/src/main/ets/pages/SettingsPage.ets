@@ -1,7 +1,5 @@
 import { common, ConfigurationConstant, bundleManager } from '@kit.AbilityKit'
-import { DatabaseManager } from '../database/DatabaseManager'
-import { ColorMode } from '../common/Constants'
-import { Logger } from '../common/Logger'
+import { DatabaseManager, ColorMode, Logger } from 'container'
 
 @Component
 export struct SettingsPage {

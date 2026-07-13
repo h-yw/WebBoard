@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "btn_retry",
+      "value": "重试"
+    },
+    {
+      "name": "viewer_loading_failed",
+      "value": "加载失败"
+    },
+    {
+      "name": "viewer_error_message",
+      "value": "页面加载失败，请检查网络连接后重试"
+    },
+    {
+      "name": "viewer_no_content",
+      "value": "无法加载页面"
+    }
+  ]
+}

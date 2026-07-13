@@ -16,10 +16,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { DatabaseManager } from '../database/DatabaseManager';
-import { FileManager } from '../util/FileManager';
-import { ColorMode } from '../common/Constants';
-import { Logger } from '../common/Logger';
+import { DatabaseManager, FileManager, ColorMode, Logger } from 'container';
 
 const DOMAIN = 0x0000;
 

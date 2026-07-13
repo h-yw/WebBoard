@@ -1,0 +1,9 @@
+{
+  "name": "container",
+  "version": "1.0.0",
+  "description": "WebBoard container HSP module",
+  "main": "./src/main/ets/Index.ets",
+  "author": "",
+  "license": "",
+  "dependencies": {}
+}

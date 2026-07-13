@@ -1,0 +1,11 @@
+{
+  "module": {
+    "name": "container",
+    "type": "shared",
+    "description": "WebBoard container dynamic shared package",
+    "srcEntry": "./ets/Index.ets",
+    "deviceTypes": ["phone"],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}
