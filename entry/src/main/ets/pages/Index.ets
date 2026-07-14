@@ -6,7 +6,6 @@ import { EditPage } from './EditPage'
 import { SettingsPage } from './SettingsPage'
 import { WebAppItem, AppDataSource, DatabaseManager, WebPreloader, WorkDirectory, LogoType, SourceType, LayoutMode, Toast, Dialog, Logger, eventEmitter } from 'container'
 import { shareAppCard, deleteDirectory, startScan } from '../util/IndexActions'
-import { MarketService, MarketAppInfo, getCategoryLabel, formatDownloads } from '../market/MarketService'
 
 interface ViewerParam {
   entryHtml: string
@@ -30,15 +29,12 @@ export struct Index {
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
-  @State selectedTab: string = 'local'
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack = new NavPathStack()
-  private marketService: MarketService = new MarketService()
   private updateListenerId: string = ''
   private addListenerId: string = ''
-  private installedHtmlSet: Set<string> = new Set()
 
   getFilteredApps(): WebAppItem[] {
     if (!this.appList || this.appList.length === 0) {
@@ -147,12 +143,6 @@ export struct Index {
   async loadApps(): Promise<void> {
     if (this.dbMgr) {
       this.appList = await this.dbMgr.getAllApps()
-      // Build installed set for market "已添加" state
-      const installedSet: Set<string> = new Set()
-      for (let i = 0; i < this.appList.length; i++) {
-        installedSet.add(this.appList[i].entryHtml)
-      }
-      this.installedHtmlSet = installedSet
       // Reuse the same dataSource instance — LazyForEach is bound to it via
       // registerDataChangeListener. Creating new instances loses the listener
       // and breaks UI refresh for all operations (add, edit, delete, search).
@@ -322,29 +312,6 @@ export struct Index {
     }
     await this.loadApps()
     Toast.show('已删除')
-  }
-
-  isMarketAppInstalled(marketApp: MarketAppInfo): boolean {
-    return this.installedHtmlSet.has(marketApp.url)
-  }
-
-  async addMarketApp(marketApp: MarketAppInfo): Promise<void> {
-    if (!this.dbMgr) {
-      return
-    }
-    const item = new WebAppItem()
-    item.id = WorkDirectory.generateId()
-    item.name = marketApp.name
-    item.description = marketApp.description
-    item.logoType = LogoType.INITIAL
-    item.logoUri = ''
-    item.entryHtml = marketApp.url
-    item.sourceType = SourceType.URL
-    item.createTime = Date.now()
-    await this.dbMgr.addApp(item)
-    await this.loadApps()
-    this.selectedTab = 'local'
-    Toast.show('已添加')
   }
 
   @Builder
@@ -539,175 +506,6 @@ export struct Index {
   }
 
   @Builder
-  MarketCard(marketApp: MarketAppInfo) {
-    Row() {
-      // App emoji icon
-      Text(marketApp.icon)
-        .fontSize(36)
-        .width(56)
-        .height(56)
-        .textAlign(TextAlign.Center)
-        .borderRadius(12)
-        .backgroundColor($r('app.color.app_card_bg'))
-        .border({ width: 1, color: $r('app.color.app_border') })
-
-      Column() {
-        // Title row: name + category badge
-        Row() {
-          Text(marketApp.name)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.app_text_primary'))
-            .layoutWeight(1)
-
-          Text(getCategoryLabel(marketApp.category))
-            .fontSize(11)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.app_primary'))
-            .borderRadius(4)
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.SpaceBetween)
-        .alignItems(VerticalAlign.Center)
-
-        // Description
-        if (marketApp.description.length > 0) {
-          Text(marketApp.description)
-            .fontSize(13)
-            .fontColor($r('app.color.app_text_secondary'))
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .margin({ top: 4 })
-            .width('100%')
-        }
-
-        // Bottom row: downloads info + action button
-        Row() {
-          Row({ space: 4 }) {
-            Text('📥')
-              .fontSize(12)
-            Text(formatDownloads(marketApp.downloads) + ' 下载')
-              .fontSize(12)
-              .fontColor($r('app.color.app_text_muted'))
-          }
-          .alignItems(VerticalAlign.Center)
-          .layoutWeight(1)
-
-          if (this.isMarketAppInstalled(marketApp)) {
-            Button($r('app.string.btn_open'))
-              .height(30)
-              .borderRadius(8)
-              .fontSize(13)
-              .backgroundColor($r('app.color.app_primary'))
-              .fontColor(Color.White)
-              .onClick(() => {
-                const param: ViewerParam = {
-                  entryHtml: marketApp.url,
-                  appName: marketApp.name
-                }
-                this.navPathStack.pushPath({ name: 'ViewerPage', param: param })
-              })
-          } else {
-            Button($r('app.string.btn_add'))
-              .height(30)
-              .borderRadius(8)
-              .fontSize(13)
-              .backgroundColor($r('app.color.app_success'))
-              .fontColor(Color.White)
-              .onClick(() => {
-                this.addMarketApp(marketApp)
-              })
-          }
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .margin({ top: 8 })
-      }
-      .layoutWeight(1)
-      .margin({ left: 12 })
-      .alignItems(HorizontalAlign.Start)
-    }
-    .width('100%')
-    .padding(16)
-    .borderRadius(12)
-    .backgroundColor($r('app.color.app_card_bg'))
-    .shadow({
-      radius: 6,
-      color: $r('app.color.app_shadow'),
-      offsetX: 0,
-      offsetY: 2
-    })
-  }
-
-  @Builder
-  MarketView() {
-    Column() {
-      List({ space: 12 }) {
-        ForEach(this.marketService.getApps(), (marketApp: MarketAppInfo) => {
-          ListItem() {
-            this.MarketCard(marketApp)
-          }
-        }, (marketApp: MarketAppInfo) => marketApp.id)
-      }
-      .width('100%')
-      .layoutWeight(1)
-      .padding({ left: 16, right: 16, top: 12, bottom: 16 })
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-    }
-    .width('100%')
-    .height('100%')
-  }
-
-  @Builder
-  TabBar() {
-    Row({ space: 0 }) {
-      Button() {
-        Text($r('app.string.tab_local'))
-          .fontSize(14)
-          .fontWeight(this.selectedTab === 'local' ? FontWeight.Medium : FontWeight.Normal)
-          .fontColor(this.selectedTab === 'local' ? Color.White : $r('app.color.app_text_secondary'))
-      }
-      .height(36)
-      .borderRadius({
-        topLeft: 8,
-        bottomLeft: 8,
-        topRight: 0,
-        bottomRight: 0
-      })
-      .backgroundColor(this.selectedTab === 'local' ? $r('app.color.app_primary') : $r('app.color.app_card_bg'))
-      .border({ width: 1, color: $r('app.color.app_border') })
-      .layoutWeight(1)
-      .onClick(() => {
-        this.selectedTab = 'local'
-      })
-
-      Button() {
-        Text($r('app.string.tab_market'))
-          .fontSize(14)
-          .fontWeight(this.selectedTab === 'market' ? FontWeight.Medium : FontWeight.Normal)
-          .fontColor(this.selectedTab === 'market' ? Color.White : $r('app.color.app_text_secondary'))
-      }
-      .height(36)
-      .borderRadius({
-        topLeft: 0,
-        bottomLeft: 0,
-        topRight: 8,
-        bottomRight: 8
-      })
-      .backgroundColor(this.selectedTab === 'market' ? $r('app.color.app_primary') : $r('app.color.app_card_bg'))
-      .border({ width: 1, color: $r('app.color.app_border') })
-      .layoutWeight(1)
-      .onClick(() => {
-        this.selectedTab = 'market'
-      })
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 8, bottom: 4 })
-  }
-
-  @Builder
   Menus() {
     Row({ space: 8 }) {
       Button({ type: ButtonType.Normal, buttonStyle: ButtonStyleMode.TEXTUAL }) {
@@ -779,11 +577,7 @@ export struct Index {
   build() {
     Navigation(this.navPathStack) {
       Column() {
-        this.TabBar()
-
-        if (this.selectedTab === 'market') {
-          this.MarketView()
-        } else if (this.getFilteredApps().length === 0) {
+        if (this.getFilteredApps().length === 0) {
           Column({ space: 16 }) {
             if (this.searchKeyword.length > 0) {
               Text('🔍')
