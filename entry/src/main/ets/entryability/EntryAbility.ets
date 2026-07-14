@@ -15,14 +15,16 @@
 
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
-import { DatabaseManager, FileManager, ColorMode, Logger } from 'container';
+import { window, promptAction } from '@kit.ArkUI';
+import { DatabaseManager, FileManager, ColorMode, Logger, eventEmitter } from 'container';
 
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    this.handleCardLaunch(want)
+    // ... existing logic
     try {
       const dbMgr = DatabaseManager.getInstance(this.context)
       dbMgr.init().then(async () => {
@@ -57,6 +59,30 @@ export default class EntryAbility extends UIAbility {
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to init DB. Cause: %{public}s', JSON.stringify(err));
     }
+  }
+
+  /**
+   * Handle launch from desktop card click.
+   * Sets AppStorage value that Index.ets reads to navigate to the target app.
+   */
+  private handleCardLaunch(want: Want): void {
+    // postCardAction params map directly to Want.parameters
+    const fromCard: string = want?.parameters?.['fromCard'] as string || ''
+    if (fromCard !== 'true') {
+      return
+    }
+    const cardAction: string = want?.parameters?.['cardAction'] as string || 'openApp'
+    hilog.info(DOMAIN, 'testTag', 'Card action: ' + cardAction)
+
+    // Use EventEmitter instead of AppStorage to reliably notify Index
+    // Works for both cold start (onCreate) and warm start (onNewWant)
+    const eventData: Record<string, string> = { 'action': cardAction }
+    eventEmitter.emit('card:launch', eventData)
+  }
+
+  onNewWant(want: Want): void {
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onNewWant');
+    this.handleCardLaunch(want)
   }
 
   onDestroy(): void {

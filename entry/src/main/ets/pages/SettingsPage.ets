@@ -6,6 +6,8 @@ export struct SettingsPage {
   @State selectedMode: string = ColorMode.SYSTEM
   @State preloadEnabled: boolean = true
   @State versionName: string = ''
+  @State cardTargetAppName: string = ''
+  private cardTargetAppEntry: string = ''
   private context: common.UIAbilityContext | null = null
   private navPathStack: NavPathStack | undefined = undefined
   private dbMgr: DatabaseManager | null = null
@@ -22,6 +24,15 @@ export struct SettingsPage {
         this.selectedMode = mode
         const enabled = await this.dbMgr!.getSetting('preload_enabled', 'true')
         this.preloadEnabled = enabled === 'true'
+        const cardApp = await this.dbMgr!.getSetting('card_target_app', '')
+        if (cardApp.length > 0) {
+          this.cardTargetAppEntry = cardApp
+          const apps = await this.dbMgr!.getAllApps()
+          const found = apps.find(a => a.entryHtml === cardApp)
+          if (found) {
+            this.cardTargetAppName = found.name
+          }
+        }
       })
     }
 
@@ -64,6 +75,40 @@ export struct SettingsPage {
     this.preloadEnabled = enabled
 
     await this.dbMgr.setSetting('preload_enabled', enabled ? 'true' : 'false')
+  }
+
+  private showAppPicker(): void {
+    if (!this.context || !this.dbMgr) {
+      return
+    }
+    this.dbMgr.getAllApps().then((apps) => {
+      if (apps.length === 0) {
+        return
+      }
+      const sheets: SheetInfo[] = [
+        { title: '（无 — 打开首页）', action: (): void => {
+          this.cardTargetAppName = ''
+          this.cardTargetAppEntry = ''
+          this.dbMgr!.setSetting('card_target_app', '')
+        }}
+      ]
+      for (let i = 0; i < apps.length; i++) {
+        const app = apps[i]
+        sheets.push({ title: app.name, action: (): void => {
+          this.cardTargetAppName = app.name
+          this.cardTargetAppEntry = app.entryHtml
+          this.dbMgr!.setSetting('card_target_app', app.entryHtml)
+        }})
+      }
+      this.getUIContext().showActionSheet({
+        title: '选择卡片快捷方式',
+        message: '点击卡片时直接打开选中的应用',
+        sheets: sheets,
+        cancel: (): void => { Logger.warn('SettingsPage', 'app picker cancelled') }
+      })
+    }).catch((err: Error) => {
+      Logger.warn('SettingsPage', 'getAllApps failed')
+    })
   }
 
   build() {
@@ -209,6 +254,43 @@ export struct SettingsPage {
         .margin({ top: 8 })
 
         Text($r('app.string.preload_desc'))
+          .fontSize(12)
+          .fontColor($r('app.color.app_text_muted'))
+          .margin({ left: 4, top: 4 })
+
+        // --- 桌面卡片配置 ---
+        Text('桌面卡片')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.app_text_muted'))
+          .letterSpacing(0.5)
+          .margin({ left: 4, top: 20, bottom: 8 })
+          .width('100%')
+          .textAlign(TextAlign.Start)
+
+        Column() {
+          Row() {
+            Text('快捷方式')
+              .fontSize(15)
+              .fontColor($r('app.color.app_text_primary'))
+              .layoutWeight(1)
+
+            Text(this.cardTargetAppName.length > 0 ? this.cardTargetAppName : '未设置')
+              .fontSize(14)
+              .fontColor(this.cardTargetAppName.length > 0 ? $r('app.color.app_primary') : $r('app.color.app_text_muted'))
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+          .onClick(() => {
+            this.showAppPicker()
+          })
+        }
+        .width('100%')
+        .backgroundColor($r('app.color.app_card_bg'))
+        .borderRadius(12)
+        .margin({ top: 8 })
+
+        Text('点击卡片时直接打开指定的应用，留空则打开首页')
           .fontSize(12)
           .fontColor($r('app.color.app_text_muted'))
           .margin({ left: 4, top: 4 })

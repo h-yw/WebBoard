@@ -74,6 +74,19 @@
             "resource": "$profile:backup_config"
           }
         ],
+      },
+      {
+        "name": "AppFormCardAbility",
+        "srcEntry": "./ets/formability/FormAbility.ets",
+        "type": "form",
+        "exported": true,
+        "label": "$string:form_card_name",
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
       }
     ]
   }

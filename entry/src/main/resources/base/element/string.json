@@ -339,6 +339,14 @@
     {
       "name": "permission_location_reason",
       "value": "用于获取您的位置信息以支持 H5 应用的定位功能"
+    },
+    {
+      "name": "form_card_name",
+      "value": "WebLeaf"
+    },
+    {
+      "name": "form_card_desc",
+      "value": "快速打开最近使用的应用"
     }
   ]
 }
