@@ -62,6 +62,7 @@ export struct Index {
   async aboutToAppear(): Promise<void> {
     this.context = this.getUIContext().getHostContext() as common.UIAbilityContext
     Dialog.setUIContext(this.getUIContext())
+    Toast.setUIContext(this.getUIContext())
     this.dbMgr = DatabaseManager.getInstance(this.context)
     await this.dbMgr.init()
     WorkDirectory.ensureDirectory(this.context)
