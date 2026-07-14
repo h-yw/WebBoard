@@ -30,6 +30,7 @@ export struct Index {
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
   @State appRefreshVersion: number = 0
+  @State searchHistory: string[] = []
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
@@ -48,8 +49,10 @@ export struct Index {
     const result: WebAppItem[] = []
     for (let i = 0; i < this.appList.length; i++) {
       const app = this.appList[i]
+      const fileName: string = app.entryHtml.substring(app.entryHtml.lastIndexOf('/') + 1)
       if (app.name.toLowerCase().includes(keyword) ||
-          app.description.toLowerCase().includes(keyword)) {
+          app.description.toLowerCase().includes(keyword) ||
+          fileName.toLowerCase().includes(keyword)) {
         result.push(app)
       }
     }
@@ -68,6 +71,15 @@ export struct Index {
     await this.loadApps()
     await this.ensurePresetApps()
     this.preloadRecentApps()
+
+    // Load search history
+    try {
+      const history: string = await this.dbMgr.getSetting('search_history', '')
+      if (history.length > 0) {
+        this.searchHistory = JSON.parse(history) as string[]
+      }
+    } catch (e) {}
+
     this.updateListenerId = eventEmitter.subscribe("item:update",(res)=>{
       console.log("item:update======>",JSON.stringify(res))
       this.loadApps()
@@ -149,6 +161,21 @@ export struct Index {
       // registerDataChangeListener. Creating new instances loses the listener
       // and breaks UI refresh for all operations (add, edit, delete, search).
       this.dataSource.setApps(this.getFilteredApps())
+    }
+  }
+
+  private async saveSearchHistory(keyword: string): Promise<void> {
+    if (!this.dbMgr) return
+    const filtered: string[] = this.searchHistory.filter(k => k !== keyword)
+    filtered.unshift(keyword)
+    if (filtered.length > 5) {
+      filtered.pop()
+    }
+    this.searchHistory = filtered
+    try {
+      await this.dbMgr.setSetting('search_history', JSON.stringify(filtered))
+    } catch (e) {
+      Logger.warn('Index', 'saveSearchHistory failed')
     }
   }
 
@@ -330,6 +357,9 @@ export struct Index {
         .onChange((value: string) => {
           this.searchKeyword = value
           this.dataSource.setApps(this.getFilteredApps())
+          if (value.length > 0) {
+            this.saveSearchHistory(value)
+          }
         })
     }
     .width('100%')
@@ -579,6 +609,8 @@ export struct Index {
   build() {
     Navigation(this.navPathStack) {
       Column() {
+        this.SearchBar()
+
         if (this.getFilteredApps().length === 0) {
           Column({ space: 16 }) {
             if (this.searchKeyword.length > 0) {
@@ -644,7 +676,6 @@ export struct Index {
           .justifyContent(FlexAlign.Center)
           .alignItems(HorizontalAlign.Center)
         } else {
-          this.SearchBar()
           Refresh({ refreshing: $$this.isRefreshing }) {
             if (this.layoutMode === LayoutMode.GRID) {
               Scroll() {
