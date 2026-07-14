@@ -173,7 +173,6 @@ export struct ImportPage {
 
       Toast.show('导入成功')
       eventEmitter.emit("item:add", Object({item: item.id}) as EventArg)
-      AppStorage.Set<number>('dataRefreshTick', Date.now())
       this.navPathStack?.pop()
     } catch (e) {
       const err = e as Error

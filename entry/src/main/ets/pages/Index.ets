@@ -31,7 +31,6 @@ export struct Index {
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
   @State selectedTab: string = 'local'
-  @StorageProp('dataRefreshTick') @Watch('onRefreshTick') dataRefreshTick: number = 0
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
@@ -81,10 +80,7 @@ export struct Index {
       this.loadApps()
     })
 
-    const pendingAction: string = AppStorage.Get<string>('card_launch_action') || ''
-    if (pendingAction.length > 0) {
-      AppStorage.Set<string>('card_launch_action', '')
-    }
+    // Remove card launch check — feature removed
   }
 
   onPageShow(): void {
@@ -100,10 +96,6 @@ export struct Index {
       eventEmitter.unsubscribe(this.addListenerId)
       this.addListenerId = ''
     }
-  }
-
-  onRefreshTick(): void {
-    this.loadApps()
   }
 
   async ensurePresetApps(): Promise<void> {

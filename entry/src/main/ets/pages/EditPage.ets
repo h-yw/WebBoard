@@ -141,7 +141,6 @@ export struct EditPage {
       this.hasUnsavedChanges = false
       Toast.show('保存成功')
       eventEmitter.emit("item:update",Object({item:item.id}) as  EventArg)
-      AppStorage.Set<number>('dataRefreshTick', Date.now())
       setTimeout(() => {
         this.navPathStack?.pop()
       }, 500)

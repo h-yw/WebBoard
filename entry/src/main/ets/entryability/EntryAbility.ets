@@ -14,19 +14,15 @@
  */
 
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { DatabaseManager, FileManager, ColorMode, Logger } from 'container';
 
-const DOMAIN = 0x0000;
-
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    Logger.info('EntryAbility', 'onCreate')
     try {
       const dbMgr = DatabaseManager.getInstance(this.context)
       dbMgr.init().then(async () => {
-        // Restore color mode from settings
         const mode = await dbMgr.getSetting('color_mode', ColorMode.SYSTEM)
         let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
         if (mode === ColorMode.LIGHT) {
@@ -36,7 +32,6 @@ export default class EntryAbility extends UIAbility {
         }
         this.context.getApplicationContext().setColorMode(colorMode)
 
-        // Activate persisted permissions for file access
         const apps = await dbMgr.getAllApps()
         const persistUris: string[] = []
         for (let i = 0; i < apps.length; i++) {
@@ -52,46 +47,37 @@ export default class EntryAbility extends UIAbility {
           }
         }
       }).catch((err: Error) => {
-        hilog.error(DOMAIN, 'testTag', 'Failed to init DB. Cause: %{public}s', JSON.stringify(err));
+        Logger.error('EntryAbility', 'DB init failed: ' + JSON.stringify(err))
       })
     } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to init DB. Cause: %{public}s', JSON.stringify(err));
+      Logger.error('EntryAbility', 'onCreate error: ' + JSON.stringify(err))
     }
   }
 
   onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    Logger.info('EntryAbility', 'onDestroy')
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
-
-    // SplashPage is loaded as the entry point. It has its own NavPathStack
-    // and handles navigation to Index internally via Navigation + replacePath.
-    // This eliminates the deprecated router.replaceUrl() API and keeps
-    // the navigation architecture consistent across the app.
+    Logger.info('EntryAbility', 'onWindowStageCreate')
     windowStage.loadContent('pages/SplashPage', (err) => {
       if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
-        return;
+        Logger.error('EntryAbility', 'loadContent failed: ' + JSON.stringify(err))
+        return
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
-    });
+      Logger.info('EntryAbility', 'loadContent success')
+    })
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    Logger.info('EntryAbility', 'onWindowStageDestroy')
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    Logger.info('EntryAbility', 'onForeground')
   }
 
   onBackground(): void {
-    // Ability has back to background
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    Logger.info('EntryAbility', 'onBackground')
   }
 }
