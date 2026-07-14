@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebLeaf SDK 示例</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: #f5f5f5; padding: 16px; margin: 0; }
+  h1 { font-size: 20px; color: #0F172A; }
+  .desc { font-size: 13px; color: #64748B; margin-bottom: 20px; }
+  .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card h3 { font-size: 15px; margin: 0 0 4px 0; color: #0F172A; }
+  .card p { font-size: 12px; margin: 0 0 12px 0; color: #94A3B8; }
+  .btn { display: inline-block; padding: 8px 20px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; background: #6366F1; color: white; margin-right: 6px; margin-bottom: 6px; }
+  .btn:active { opacity: 0.7; }
+  .btn-secondary { background: #F1F5F9; color: #475569; }
+  .pre { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; font-family: monospace; margin-top: 10px; white-space: pre-wrap; display: none; max-height: 150px; overflow-y: auto; }
+  .pre.show { display: block; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #DBEAFE; color: #1D4ED8; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<h1>🌿 WebLeaf SDK 示例</h1>
+<p class="desc">以下示例展示如何通过 <code>window.webLeaf</code> 调用 HarmonyOS 原生能力。</p>
+<p class="desc">SDK 已自动注入 —— 🟢 <span id="status">检测中...</span></p>
+
+<div class="card">
+  <h3>getAppInfo() <span class="badge">基础</span></h3>
+  <p>获取应用信息、SDK 版本、网络状态、设备信息</p>
+  <button class="btn" onclick="call('getAppInfo')">获取信息</button>
+  <div class="pre" id="r_getAppInfo"></div>
+</div>
+
+<div class="card">
+  <h3>getVersion() <span class="badge">基础</span></h3>
+  <p>获取 SDK 版本号、容器版本号、API 级别</p>
+  <button class="btn" onclick="call('getVersion')">获取版本</button>
+  <div class="pre" id="r_getVersion"></div>
+</div>
+
+<div class="card">
+  <h3>hasMethod() <span class="badge">基础</span></h3>
+  <p>检测某个方法在当前容器中是否可用</p>
+  <button class="btn" onclick="callHasMethod('vibrate')">检测 vibrate</button>
+  <button class="btn" onclick="callHasMethod('getLocation')">检测 getLocation</button>
+  <button class="btn" onclick="callHasMethod('nonExistent')">检测不存在的方法</button>
+  <div class="pre" id="r_hasMethod"></div>
+</div>
+
+<div class="card">
+  <h3>modifyNavStyle() <span class="badge">UI</span></h3>
+  <p>修改查看器导航栏样式（0=隐藏，1=透明，-1=设标题）</p>
+  <button class="btn btn-secondary" onclick="callNavStyle(0)">隐藏导航</button>
+  <button class="btn" onclick="callNavStyle(1)">透明导航</button>
+  <button class="btn btn-secondary" onclick="callNavStyle(-1, '自定义标题')">设标题</button>
+  <div class="pre" id="r_modifyNavStyle"></div>
+</div>
+
+<div class="card">
+  <h3>setClipboard() <span class="badge">工具</span></h3>
+  <p>将文本写入系统剪贴板</p>
+  <button class="btn" onclick="callSetClipboard()">写入 "Hello WebLeaf"</button>
+  <div class="pre" id="r_setClipboard"></div>
+</div>
+
+<div class="card">
+  <h3>vibrate() <span class="badge">工具</span></h3>
+  <p>触发设备震动</p>
+  <button class="btn btn-secondary" onclick="callVibrate(200, 1)">短震一次</button>
+  <button class="btn btn-secondary" onclick="callVibrate(300, 3)">连震三次</button>
+  <div class="pre" id="r_vibrate"></div>
+</div>
+
+<div class="card">
+  <h3>Error Handling <span class="badge">最佳实践</span></h3>
+  <p>所有 JSBridge 调用返回标准错误码</p>
+  <pre style="font-size:11px; background:#F8FAFC; padding:12px; border-radius:8px;">
+window.webLeaf.getAppInfo()
+  .then(data => { /* { status: 'ok', code: 'OK', data: {...} } */ })
+  .catch(err => { /* { code: 'PERMISSION_DENIED', message: '...' } */ })</pre>
+</div>
+
+<script>
+const STATUS = document.getElementById('status')
+
+function show(id, data) {
+  const el = document.getElementById('r_' + id)
+  if (!el) return
+  el.className = 'pre show'
+  el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+}
+
+function call(method) {
+  show(method, '调用中...')
+  if (!window.webLeaf || !window.webLeaf[method]) {
+    show(method, '错误: webLeaf.' + method + ' 不可用')
+    return
+  }
+  window.webLeaf[method]().then(data => {
+    show(method, { status: 'ok', data: data })
+  }).catch(err => {
+    show(method, { status: 'error', code: err.code || 'UNKNOWN', message: err.message })
+  })
+}
+
+function callHasMethod(name) {
+  show('hasMethod', '检测中: ' + name + '...')
+  window.webLeaf.hasMethod(name).then(data => {
+    show('hasMethod', { method: name, available: data.available })
+  }).catch(err => {
+    show('hasMethod', { error: err.message })
+  })
+}
+
+function callNavStyle(style, title) {
+  window.webLeaf.modifyNavStyle(style, title).then(() => {
+    show('modifyNavStyle', '导航已切换: style=' + style + (title ? ', title=' + title : ''))
+  }).catch(err => {
+    show('modifyNavStyle', '失败: ' + err.message)
+  })
+}
+
+function callSetClipboard() {
+  window.webLeaf.setClipboard('Hello WebLeaf').then(() => {
+    show('setClipboard', '已写入剪贴板: "Hello WebLeaf"')
+  }).catch(err => {
+    show('setClipboard', '失败: ' + err.message)
+  })
+}
+
+function callVibrate(duration, count) {
+  window.webLeaf.vibrate({ duration: duration, count: count }).then(() => {
+    show('vibrate', '震动完成: ' + count + ' 次 x ' + duration + 'ms')
+  }).catch(err => {
+    show('vibrate', '失败: ' + err.message)
+  })
+}
+
+// SDK 就绪检测
+function checkSDK() {
+  if (window.webLeaf && typeof window.webLeaf.getAppInfo === 'function') {
+    STATUS.innerHTML = '✅ WebLeaf SDK v' + (window.version || '1.0.0') + ' 已就绪'
+    STATUS.style.color = '#059669'
+  } else {
+    STATUS.innerHTML = '⏳ 等待 SDK 注入...'
+    STATUS.style.color = '#B45309'
+    setTimeout(checkSDK, 500)
+  }
+}
+
+// 监听 WebLeafReady 事件
+window.addEventListener('WebLeafReady', function(e) {
+  STATUS.innerHTML = '✅ WebLeaf SDK v' + (e.detail?.version || '1.0.0') + ' 已就绪'
+  STATUS.style.color = '#059669'
+})
+
+checkSDK()
+</script>
+</body>
+</html>
