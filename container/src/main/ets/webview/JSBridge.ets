@@ -13,6 +13,7 @@ import { pasteboard } from '@kit.BasicServicesKit'
 import { geoLocationManager } from '@kit.LocationKit'
 import { notificationManager } from '@kit.NotificationKit'
 import { window as arkWindow } from '@kit.ArkUI'
+import { scanBarcode, scanCore } from '@kit.ScanKit'
 import { Logger } from '../common/Logger'
 
 export type SourceType = 'rawfile' | 'file' | 'url'
@@ -677,12 +678,24 @@ export class JSBridge {
     }
   }
 
-  private handleScanQRCode(callId: string): void {
+  private async handleScanQRCode(callId: string): Promise<void> {
     try {
-      Logger.warn('JSBridge', 'scanQRCode: not directly implemented, use native scan button')
-      this.callback(callId, { status: 'error', code: 'NOT_SUPPORTED', message: '请使用首页扫码按钮' })
+      const options: scanBarcode.ScanOptions = {
+        scanTypes: [scanCore.ScanType.QR_CODE],
+        enableMultiMode: false,
+        enableAlbum: true
+      }
+      const result: scanBarcode.ScanResult = await scanBarcode.startScanForResult(this.context, options)
+      const rawVal: string = result.originalValue || ''
+      if (rawVal.length > 0 && rawVal !== 'undefined') {
+        const qrData: Record<string, string> = { 'result': rawVal }
+        this.callback(callId, { status: 'ok', code: 'OK', data: qrData as object })
+      } else {
+        this.callback(callId, { status: 'error', code: 'USER_CANCELLED', message: '扫码已取消' })
+      }
     } catch (e) {
-      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: 'scanQRCode failed' })
+      Logger.warn('JSBridge', 'scanQRCode cancelled: ' + JSON.stringify(e))
+      this.callback(callId, { status: 'error', code: 'USER_CANCELLED', message: '扫码已取消' })
     }
   }
 
@@ -713,6 +726,16 @@ export class JSBridge {
 
   private async handleShowNotification(paramsStr: string, callId: string): Promise<void> {
     try {
+      // Request notification permission if not enabled
+      const isEnabled: boolean = notificationManager.isNotificationEnabledSync()
+      if (!isEnabled) {
+        try {
+          await notificationManager.requestEnableNotification(this.context as common.UIAbilityContext)
+        } catch (e) {
+          this.callback(callId, { status: 'error', code: 'PERMISSION_DENIED', message: '通知权限未授予，请在系统设置中开启' })
+          return
+        }
+      }
       const params = JSON.parse(paramsStr) as Record<string, string>
       const title: string = params.title || 'WebLeaf'
       const body: string = params.body || ''
