@@ -15,7 +15,7 @@
 
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window, promptAction } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import { DatabaseManager, FileManager, ColorMode, Logger, eventEmitter } from 'container';
 
 const DOMAIN = 0x0000;
@@ -74,8 +74,10 @@ export default class EntryAbility extends UIAbility {
     const cardAction: string = want?.parameters?.['cardAction'] as string || 'openApp'
     hilog.info(DOMAIN, 'testTag', 'Card action: ' + cardAction)
 
-    // Use EventEmitter instead of AppStorage to reliably notify Index
-    // Works for both cold start (onCreate) and warm start (onNewWant)
+    // Set AppStorage flag for cold start (Index.aboutToAppear checks this)
+    AppStorage.Set<string>('card_launch_action', cardAction)
+
+    // Also emit event for warm start (Index already has listener registered)
     const eventData: Record<string, string> = { 'action': cardAction }
     eventEmitter.emit('card:launch', eventData)
   }

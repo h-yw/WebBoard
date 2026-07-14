@@ -13,11 +13,8 @@
       "colorMode": "auto",
       "isDefault": true,
       "updateEnabled": false,
-      "scheduledUpdateTime": "10:30",
-      "updateDuration": 1,
       "defaultDimension": "2*2",
       "supportDimensions": ["2*2"],
-      "formConfigAbility": "ability://EntryAbility",
       "isDynamic": true
     }
   ]

@@ -81,7 +81,7 @@ export struct Index {
       this.loadApps()
     })
 
-    // Listen for card launch events from EntryAbility
+    // Listen for card launch events from EntryAbility (warm starts)
     eventEmitter.subscribe("card:launch", (res) => {
       const params = res as Record<string, string>
       const action: string = params['action'] || ''
@@ -92,6 +92,18 @@ export struct Index {
         this.navigateToCardTarget()
       }
     })
+
+    // Check AppStorage for pending card launch (cold starts)
+    const pendingAction: string = AppStorage.Get<string>('card_launch_action') || ''
+    if (pendingAction.length > 0) {
+      AppStorage.Set<string>('card_launch_action', '')
+      if (pendingAction === 'config') {
+        this.navPathStack.pushPath({ name: 'SettingsPage' })
+        Toast.show('请在设置中配置桌面卡片快捷方式')
+      } else {
+        this.navigateToCardTarget()
+      }
+    }
   }
 
   onPageShow(): void {
