@@ -226,6 +226,9 @@ export class JSBridge {
       case 'setScreenKeepAwake':
         this.handleSetScreenKeepAwake(params, callId)
         break
+      case 'setFullscreen':
+        this.handleSetFullscreen(params, callId)
+        break
       default:
         this.callback(callId, { status: 'error', code: 'METHOD_NOT_FOUND', message: '未知方法: ' + method, error: 'unknown method' })
         break
@@ -277,7 +280,8 @@ export class JSBridge {
         'scanQRCode': 'allow',
         'downloadFile': 'allow',
         'showNotification': 'allow',
-        'setScreenKeepAwake': 'allow'
+        'setScreenKeepAwake': 'allow',
+        'setFullscreen': 'allow'
       }
     }
     return {
@@ -293,7 +297,8 @@ export class JSBridge {
       'scanQRCode': 'deny',
       'downloadFile': 'allow',
       'showNotification': 'deny',
-      'setScreenKeepAwake': 'allow'
+      'setScreenKeepAwake': 'allow',
+      'setFullscreen': 'allow'
     }
   }
 
@@ -312,8 +317,8 @@ export class JSBridge {
       const params: Record<string, string> = JSON.parse(paramsStr) as Record<string, string>
       const name: string = params['name'] || ''
       const knownMethods: string[] = ['getAppInfo', 'modifyNavStyle', 'systemShare', 'systemImagePick',
-        'vibrate', 'onBackPress', 'navigateBack', 'getVersion', 'hasMethod',
-        'setClipboard', 'getLocation', 'scanQRCode', 'downloadFile', 'showNotification', 'setScreenKeepAwake']
+        'vibrate', 'onBackPress', 'navigateBack', 'getVersion', 'hasMethod', 'setClipboard',
+        'getLocation', 'scanQRCode', 'downloadFile', 'showNotification', 'setScreenKeepAwake', 'setFullscreen']
       const resultData: HasMethodData = { available: knownMethods.indexOf(name) >= 0 }
       this.callback(callId, { status: 'ok', code: 'OK', data: resultData as object })
     } catch (e) {
@@ -774,6 +779,31 @@ export class JSBridge {
       this.callback(callId, { status: 'ok', code: 'OK', data: null })
     } catch (e) {
       this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: 'setKeepAwake failed' })
+    }
+  }
+
+  private async handleSetFullscreen(paramsStr: string, callId: string): Promise<void> {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, Object>
+      const enabled: boolean = params['enabled'] === true
+      const mainWindow = await arkWindow.getLastWindow(this.context)
+      if (enabled) {
+        await mainWindow.setWindowLayoutFullScreen(true)
+        await mainWindow.setPreferredOrientation(arkWindow.Orientation.LANDSCAPE)
+        // Hide system bars — both status bar and navigation bar
+        await mainWindow.setWindowSystemBarEnable([])
+        // Additional precise control for navigation
+        try { await mainWindow.setSpecificSystemBarEnabled('navigation', false) } catch (e) {}
+      } else {
+        await mainWindow.setPreferredOrientation(arkWindow.Orientation.PORTRAIT)
+        await mainWindow.setWindowSystemBarEnable(['status', 'navigation'])
+        try { await mainWindow.setSpecificSystemBarEnabled('navigation', true) } catch (e) {}
+        await mainWindow.setWindowLayoutFullScreen(false)
+      }
+      this.callback(callId, { status: 'ok', code: 'OK', data: null })
+    } catch (e) {
+      Logger.error('JSBridge', 'setFullscreen failed: ' + JSON.stringify(e))
+      this.callback(callId, { status: 'error', code: 'INTERNAL_ERROR', message: '全屏切换失败:' + JSON.stringify(e) })
     }
   }
 }

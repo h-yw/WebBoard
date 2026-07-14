@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>翻转时钟</title>
+<script src="webleaf-sdk.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0F0F12;
+    color: #fff;
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .clock {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .flip-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flip-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 12px;
+    font-weight: 500;
+  }
+
+  .flip-card {
+    position: relative;
+    width: 72px;
+    height: 100px;
+    border-radius: 10px;
+    background: #1A1A22;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Top half (upper) */
+  .flip-card .top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+    background: #1A1A22;
+    border-bottom: 1px solid rgba(0,0,0,0.3);
+  }
+
+  .flip-card .top span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200%;
+    font-size: 68px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFF;
+    letter-spacing: -2px;
+  }
+
+  /* Bottom half (lower) */
+  .flip-card .bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+    background: #1E1E28;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .flip-card .bottom span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200%;
+    font-size: 68px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFF;
+    letter-spacing: -2px;
+    transform: translateY(-50%);
+  }
+
+  /* Flipping overlay */
+  .flip-card .flip-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+    background: #1A1A22;
+    transform-origin: bottom center;
+    transform: rotateX(0deg);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    z-index: 10;
+    border-bottom: 1px solid rgba(0,0,0,0.3);
+  }
+
+  .flip-card .flip-top span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200%;
+    font-size: 68px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFF;
+    letter-spacing: -2px;
+  }
+
+  .flip-card .flip-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+    background: #1E1E28;
+    transform-origin: top center;
+    transform: rotateX(90deg);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    z-index: 10;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .flip-card .flip-bottom span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200%;
+    font-size: 68px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFF;
+    letter-spacing: -2px;
+    transform: translateY(-50%);
+  }
+
+  /* Animation */
+  @keyframes flipTop {
+    0% { transform: rotateX(0deg); }
+    50% { transform: rotateX(90deg); }
+    100% { transform: rotateX(90deg); }
+  }
+
+  @keyframes flipBottom {
+    0% { transform: rotateX(90deg); }
+    50% { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+
+  .flip-card.flipping .flip-top {
+    animation: flipTop 0.3s ease-in forwards;
+  }
+
+  .flip-card.flipping .flip-bottom {
+    animation: flipBottom 0.3s ease-out forwards;
+  }
+
+  /* Separator dots blinking */
+  .separator {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+    padding: 0 4px;
+    height: 100px;
+    justify-content: center;
+  }
+
+  .separator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+  }
+
+  .separator.blink .dot {
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 0.12; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Date display */
+  .date-display {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1px;
+    margin-top: 30px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 16px;
+    margin-top: 40px;
+  }
+
+  .controls button {
+    padding: 10px 24px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .controls button:active {
+    transform: scale(0.95);
+    background: rgba(255,255,255,0.1);
+  }
+
+  .controls button.active {
+    background: rgba(99,102,241,0.3);
+    border-color: rgba(99,102,241,0.5);
+    color: #FFFFFF;
+  }
+
+  /* Footer */
+  .footer {
+    position: fixed;
+    bottom: 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 0.5px;
+  }
+
+  /* Gradient accent line */
+  .accent {
+    width: 120px;
+    height: 3px;
+    border-radius: 1.5px;
+    background: linear-gradient(90deg, #6366F1, #8B5CF6);
+    margin-top: 10px;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="clock" id="clock"></div>
+<div class="date-display" id="dateDisplay"></div>
+<div class="controls">
+  <button id="btnKeepAwake" onclick="toggleKeepAwake()">🌙 屏幕常亮</button>
+  <button id="btnFullscreen" onclick="toggleFullscreen()">⛶ 全屏</button>
+</div>
+<div class="footer">WebLeaf Flip Clock</div>
+
+<script>
+// ===================== Flip Clock Engine =====================
+const CLOCK = document.getElementById('clock')
+const DATE_DISPLAY = document.getElementById('dateDisplay')
+const BTN_KEEP_AWAKE = document.getElementById('btnKeepAwake')
+
+let prevTime = ''
+let keepAwakeEnabled = false
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n
+}
+
+function createFlipUnit(label) {
+  const unit = document.createElement('div')
+  unit.className = 'flip-unit'
+
+  const card = document.createElement('div')
+  card.className = 'flip-card'
+  card.innerHTML = `
+    <div class="top"><span>0</span></div>
+    <div class="bottom"><span>0</span></div>
+    <div class="flip-top"><span>0</span></div>
+    <div class="flip-bottom"><span>0</span></div>
+  `
+  unit.appendChild(card)
+
+  const lbl = document.createElement('div')
+  lbl.className = 'flip-label'
+  lbl.textContent = label
+  unit.appendChild(lbl)
+
+  return unit
+}
+
+// Build clock: HH : MM : SS
+const units = []
+const LABELS = ['时', '分', '秒']
+
+for (let i = 0; i < 6; i++) {
+  if (i > 0 && i % 2 === 0) {
+    const sep = document.createElement('div')
+    sep.className = 'separator blink'
+    sep.innerHTML = '<div class="dot"></div><div class="dot"></div>'
+    CLOCK.appendChild(sep)
+  }
+  const unit = createFlipUnit(LABELS[Math.floor(i / 2)])
+  CLOCK.appendChild(unit)
+  units.push(unit)
+}
+
+function getCard(unit) {
+  return unit.querySelector('.flip-card')
+}
+
+function setDigit(unit, digit) {
+  const card = getCard(unit)
+  const top = card.querySelector('.top span')
+  const bottom = card.querySelector('.bottom span')
+  const flipTop = card.querySelector('.flip-top span')
+  const flipBottom = card.querySelector('.flip-bottom span')
+
+  const currentText = top.textContent
+  if (currentText === String(digit)) return
+
+  // Set the new value in the flip layers
+  flipTop.textContent = String(digit)
+  flipBottom.textContent = String(digit)
+
+  // Trigger flip animation
+  card.classList.remove('flipping')
+  // Force reflow
+  void card.offsetWidth
+  card.classList.add('flipping')
+
+  // Update display after animation completes
+  setTimeout(() => {
+    top.textContent = String(digit)
+    bottom.textContent = String(digit)
+    card.classList.remove('flipping')
+  }, 300)
+}
+
+function updateClock() {
+  const now = new Date()
+  const h = pad(now.getHours())
+  const m = pad(now.getMinutes())
+  const s = pad(now.getSeconds())
+
+  const timeStr = h + m + s
+  if (timeStr === prevTime) return
+  prevTime = timeStr
+
+  setDigit(units[0], h[0])
+  setDigit(units[1], h[1])
+  setDigit(units[2], m[0])
+  setDigit(units[3], m[1])
+  setDigit(units[4], s[0])
+  setDigit(units[5], s[1])
+
+  // Date
+  const y = now.getFullYear()
+  const mo = pad(now.getMonth() + 1)
+  const d = pad(now.getDate())
+  const wd = WEEKDAYS[now.getDay()]
+  DATE_DISPLAY.textContent = y + '年' + mo + '月' + d + '日 · 星期' + wd
+}
+
+// ===================== Controls =====================
+
+function toggleKeepAwake() {
+  keepAwakeEnabled = !keepAwakeEnabled
+  BTN_KEEP_AWAKE.textContent = keepAwakeEnabled ? '🌙 常亮中' : '🌙 屏幕常亮'
+  BTN_KEEP_AWAKE.className = keepAwakeEnabled ? 'active' : ''
+  callJSBridge('setScreenKeepAwake', { enabled: keepAwakeEnabled })
+}
+
+let fullscreenEnabled = false
+
+function toggleFullscreen() {
+  fullscreenEnabled = !fullscreenEnabled
+  const btn = document.getElementById('btnFullscreen')
+  btn.textContent = fullscreenEnabled ? '🔄 退出横屏' : '🔄 横屏全屏'
+  btn.className = fullscreenEnabled ? 'active' : ''
+
+  // Hide/show ViewerPage nav bar using existing JSBridge
+  if (window.webLeaf && window.webLeaf.modifyNavStyle) {
+    window.webLeaf.modifyNavStyle(fullscreenEnabled ? 0 : 1)
+  }
+
+  // Toggle screen orientation and system bars
+  callJSBridge('setFullscreen', { enabled: fullscreenEnabled })
+}
+
+function callJSBridge(method, params) {
+  if (window.webLeaf && window.webLeaf[method]) {
+    window.webLeaf[method](params).then(function(data) {
+      if (method === 'setFullscreen' && params && params.enabled) {
+        showToast('已进入横屏全屏模式')
+      }
+    }).catch(function(err) {
+      showToast('失败: ' + (err.message || '未知错误'))
+    })
+    return
+  }
+  try {
+    if (window.JSBridgeHandle && window.JSBridgeHandle.call) {
+      window.JSBridgeHandle.call(method, JSON.stringify(params || {}), 'jsb_' + Date.now())
+    } else {
+      showToast('JSBridge 未就绪，请稍后再试')
+    }
+  } catch(e) {
+    showToast('调用失败')
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div')
+  t.textContent = msg
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,30,40,0.95);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;transition:opacity 0.3s'
+  document.body.appendChild(t)
+  setTimeout(function() { t.style.opacity = '0'; setTimeout(function() { t.remove() }, 300) }, 1500)
+}
+
+// ===================== Init =====================
+updateClock()
+setInterval(updateClock, 250)
+</script>
+</body>
+</html>

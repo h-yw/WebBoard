@@ -148,6 +148,10 @@ export const WEBLEAF_SDK_SCRIPT: string =
 '  setScreenKeepAwake: function(enabled) {' +
 '    return window.webLeaf._call("setScreenKeepAwake", { enabled: enabled });' +
 '  },' +
+'  /** Toggle fullscreen mode (hide status bar and navigation) */' +
+'  setFullscreen: function(enabled) {' +
+'    return window.webLeaf._call("setFullscreen", { enabled: enabled });' +
+'  },' +
 '' +
 '  /** Generic method call */' +
   '  call: function(method, params) {' +
