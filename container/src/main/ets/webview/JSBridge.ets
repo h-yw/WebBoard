@@ -651,7 +651,18 @@ export class JSBridge {
       const permList: Permissions[] = [permName]
       const reqResult: PermissionRequestResult = await atManager.requestPermissionsFromUser(
         this.context as common.UIAbilityContext, permList)
-      return reqResult.authResults[0] === 0
+      // If denied, try again via system settings dialog
+      if (reqResult.authResults[0] !== 0) {
+        try {
+          const settingResult: number[] = await atManager.requestPermissionOnSetting(
+            this.context as common.UIAbilityContext, permList)
+          return settingResult[0] === 0
+        } catch (e2) {
+          Logger.error('JSBridge', 'requestPermissionOnSetting failed: ' + JSON.stringify(e2))
+          return false
+        }
+      }
+      return true
     } catch (e) {
       Logger.error('JSBridge', 'requestPermission failed: ' + JSON.stringify(e))
       return false

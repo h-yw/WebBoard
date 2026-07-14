@@ -29,6 +29,7 @@ export struct Index {
   @State searchKeyword: string = ''
   @State isRefreshing: boolean = false
   @State layoutMode: string = LayoutMode.GRID
+  @State appRefreshVersion: number = 0
   private dataSource: AppDataSource = new AppDataSource()
   private dbMgr: DatabaseManager | null = null
   private context: common.UIAbilityContext | null = null
@@ -143,6 +144,7 @@ export struct Index {
   async loadApps(): Promise<void> {
     if (this.dbMgr) {
       this.appList = await this.dbMgr.getAllApps()
+      this.appRefreshVersion++
       // Reuse the same dataSource instance — LazyForEach is bound to it via
       // registerDataChangeListener. Creating new instances loses the listener
       // and breaks UI refresh for all operations (add, edit, delete, search).
@@ -651,7 +653,7 @@ export struct Index {
                     GridItem() {
                       this.GridCardItem(item)
                     }
-                  }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri)
+                  }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri + '_v' + this.appRefreshVersion)
                 }
                 .cachedCount(10)
                 .columnsTemplate('1fr 1fr')
@@ -670,7 +672,7 @@ export struct Index {
                   ListItem() {
                     this.CardItem(item)
                   }
-                }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri)
+                }, (item: WebAppItem) => item.id + '_' + item.name + '_' + item.description + '_' + item.logoType + '_' + item.logoUri + '_v' + this.appRefreshVersion)
               }
               .cachedCount(10)
               .width('100%')

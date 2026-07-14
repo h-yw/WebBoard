@@ -1,4 +1,6 @@
 import { common } from '@kit.AbilityKit'
+import { fileIo } from '@kit.CoreFileKit'
+import { util } from '@kit.ArkTS'
 import { WebAppItem, DatabaseManager, FileManager, WorkDirectory, LogoType, SourceType, Toast, EventArg, eventEmitter } from 'container'
 
 @Component
@@ -48,6 +50,94 @@ export struct ImportPage {
       }
     } catch (e) {
       this.statusMessage = '选择文件失败'
+    }
+  }
+
+  /**
+   * Quick import: pick an HTML file → extract <title> → save immediately.
+   * No manual form filling needed.
+   */
+  async quickImport(): Promise<void> {
+    if (!this.context) {
+      return
+    }
+    const fileMgr = new FileManager(this.context)
+    try {
+      const uris = await fileMgr.selectHtmlFile()
+      if (uris.length === 0) {
+        return
+      }
+      this.statusMessage = '正在处理...'
+      const uri: string = uris[0]
+      const fileName: string = fileMgr.getFileNameFromUri(uri)
+
+      // Try to extract title from HTML content
+      let appTitle: string = fileName.replace(/\.html?$/i, '')
+      try {
+        const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+        const stat = fileIo.statSync(uri)
+        const readSize: number = Math.min(stat.size, 4096)
+        const buf: ArrayBuffer = new ArrayBuffer(readSize)
+        const bytesRead: number = fileIo.readSync(file.fd, buf) as number
+        fileIo.closeSync(file)
+        if (bytesRead > 0) {
+          const uint8 = new Uint8Array(buf, 0, bytesRead)
+          const textDecoder = new util.TextDecoder()
+          const content: string = textDecoder.decodeWithStream(uint8, { stream: false })
+          const titleMatch: RegExpMatchArray | null = content.match(/<title[^>]*>([^<]+)<\/title>/i)
+          if (titleMatch && titleMatch[1].trim().length > 0) {
+            appTitle = titleMatch[1].trim()
+          }
+        }
+      } catch (e) {
+        // Fallback to filename-based name
+      }
+
+      // Auto-save with extracted title
+      const workDir: string = WorkDirectory.getPath(this.context)
+      WorkDirectory.ensureDirectory(this.context)
+      let destPath: string = uri
+      let sourceType: string = SourceType.FILE
+      let persistUri: string = ''
+
+      try {
+        const persisted = await fileMgr.tryPersistPermission(uri)
+        if (persisted) {
+          destPath = uri.startsWith('file://') ? uri.substring(7) : uri
+          sourceType = SourceType.FILE
+          persistUri = uri
+        } else {
+          this.statusMessage = '正在复制: ' + fileName + '...'
+          destPath = fileMgr.copyFileToWorkspace(uri, fileName, workDir)
+          sourceType = SourceType.FILE
+        }
+      } catch (e) {
+        this.statusMessage = '正在复制: ' + fileName + '...'
+        destPath = fileMgr.copyFileToWorkspace(uri, fileName, workDir)
+        sourceType = SourceType.FILE
+      }
+
+      const item = new WebAppItem()
+      item.id = fileMgr.generateId()
+      item.name = appTitle
+      item.description = ''
+      item.logoType = LogoType.INITIAL
+      item.logoUri = ''
+      item.entryHtml = destPath
+      item.sourceType = sourceType
+      item.createTime = Date.now()
+      item.persistUri = persistUri
+      item.persistMode = 'read'
+
+      const dbMgr = DatabaseManager.getInstance(this.context)
+      await dbMgr.addApp(item)
+
+      Toast.show('导入成功: ' + appTitle)
+      eventEmitter.emit("item:add", Object({item: item.id}) as EventArg)
+      this.navPathStack?.pop()
+    } catch (e) {
+      this.statusMessage = '快速导入失败: ' + JSON.stringify(e)
+      Toast.show('导入失败')
     }
   }
 
@@ -236,6 +326,26 @@ export struct ImportPage {
                 .width('100%')
                 .onClick(()=>{
                   this.pickHtmlFile()
+                })
+
+                // Quick import button — one-tap file pick + auto-save
+                Button() {
+                  Row({ space: 6 }) {
+                    SymbolGlyph($r('sys.symbol.bolt_fill'))
+                      .fontSize(16)
+                      .fontColor([Color.White])
+                    Text('快速导入')
+                      .fontSize(14)
+                      .fontColor(Color.White)
+                  }
+                }
+                .height(40)
+                .borderRadius(8)
+                .width('100%')
+                .backgroundColor($r('app.color.app_primary'))
+                .margin({ top: 8 })
+                .onClick(() => {
+                  this.quickImport()
                 })
 
                 if (this.importMode === 'file' && this.selectedFileName.length > 0) {
