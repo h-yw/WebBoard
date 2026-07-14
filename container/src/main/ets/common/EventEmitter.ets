@@ -1,6 +1,6 @@
 import { ValueType } from '@kit.ArkData'
 
-type EventName = "item:add" | "item:remove" | "item:update" | "card:launch"
+type EventName = "item:add" | "item:remove" | "item:update"
 type EmitterEvent = Record<EventName, Array<EventFn>>
 
 export type EventArg = Record<string, ValueType>
